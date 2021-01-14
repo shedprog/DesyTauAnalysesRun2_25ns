@@ -159,6 +159,12 @@
 #include "TauSpinner/SimpleParticle.h"
 #include "TauSpinner/tau_reweight_lib.h"
 
+// following group is needed for LumiBlock
+#include "FWCore/Framework/interface/GetterOfProducts.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/GenLumiInfoHeader.h"
+
+
 using namespace std;
 using namespace reco;
 
@@ -343,6 +349,7 @@ class NTupleMaker : public edm::EDAnalyzer{
 
   bool cgen;
   bool csusyinfo;
+  bool csusyinfoLumiBlock;
   bool ctrigger;
   bool cbeamspot;
   bool crectrack;
@@ -464,8 +471,10 @@ class NTupleMaker : public edm::EDAnalyzer{
   edm::EDGetTokenT<LHEEventProduct> LHEToken_;
   edm::EDGetTokenT<double> SusyMotherMassToken_;
   edm::EDGetTokenT<double> SusyLSPMassToken_;
+  edm::EDGetTokenT<GenLumiInfoHeader> genLumiHeaderToken_; // Added to read SUSY info from iLumiBlock
   edm::EDGetTokenT<HTXS::HiggsClassification> htxsToken_;
   std::string sampleName;
+
 
   PropagatorWithMaterial*               propagatorWithMaterial;
 
@@ -1394,6 +1403,7 @@ class NTupleMaker : public edm::EDAnalyzer{
   // susy info
   Float_t SusyMotherMass;
   Float_t SusyLSPMass;
+  Float_t SusyLifeTime;
 
   std::map<std::string, int>* hltriggerresults_;
   std::map<std::string, int>* hltriggerprescales_;

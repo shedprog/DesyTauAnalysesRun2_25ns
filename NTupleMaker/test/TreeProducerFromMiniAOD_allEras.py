@@ -2,14 +2,15 @@ import FWCore.ParameterSet.Config as cms
 
 ### NOTE: Please keep the settings for MC 18 when pushing this file to the git repository ###
 # Configurable options =======================================================================
-isData = True
-isSingleMuonData = True # needed to record track collection for NMSSM ananlysis
+isData = False
+isSingleMuonData = False # needed to record track collection for NMSSM ananlysis
 isEmbedded = False # set to true if you run over Z->TauTau embedded samples
 isRun2018D = False # needed for the correct Global Tag
 isHiggsSignal = False # Set to true if you run over higgs signal samples -> needed for STXS1p1 flags
 year = 2018
 period = '2018'
 RunTauSpinnerProducer = False #only do this if you want to calculate tauspinner weights for a sample with two taus and flat tau polarisation
+SusyInfoLumiBlock = True
 
 # ============================================================================================
 if isEmbedded : isData = True
@@ -70,7 +71,7 @@ process.source = cms.Source("PoolSource",
 #        "root://cms-xrd-global.cern.ch///store/user/sbrommer/gc_storage/ElTau_data_2017_CMSSW944/TauEmbedding_ElTau_data_2017_CMSSW944_Run2017B/1/merged_1100.root"
         #"root://cms-xrd-global.cern.ch///store/user/aakhmets/gc_storage/MuTau_data_2017_CMSSW944_gridka/TauEmbedding_MuTau_data_2017_CMSSW944_Run2017D/1/merged_100.root"
         #"root://cms-xrd-global.cern.ch///store/user/sbrommer/gc_storage/ElTau_data_2017_CMSSW944/TauEmbedding_ElTau_data_2017_CMSSW944_Run2017E/1/merged_10300.root"
-        "/store/mc/RunIIFall17MiniAODv2/SUSYGluGluToHToTauTau_M-1200_TuneCP5_13TeV-pythia8/MINIAODSIM/PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/90000/408FF742-D941-E811-AEBD-484D7E8DF085.root",
+        #"/store/mc/RunIIFall17MiniAODv2/SUSYGluGluToHToTauTau_M-1200_TuneCP5_13TeV-pythia8/MINIAODSIM/PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/90000/408FF742-D941-E811-AEBD-484D7E8DF085.root",
         #"/store/data/Run2018A/MET/MINIAOD/17Sep2018-v1/120000/7D0437D3-D24D-4C44-B015-6A2938D4D707.root" # use for testing (2018)
         #"/store/data/Run2018B/DoubleMuon/MINIAOD/26Sep2018-v1/110000/EEE985E6-A85C-9C4C-8747-5211105A0603.root" # for testing (2018)
         #"/store/data/Run2018D/JetHT/MINIAOD/PromptReco-v2/000/320/853/00000/2C20B666-3A9A-E811-9D32-FA163EAC4172.root"  # From Run2018D with a lot of events not passing the json file
@@ -83,6 +84,7 @@ process.source = cms.Source("PoolSource",
 	#"root://cms-xrd-global.cern.ch///store/user/jbechtel/gc_storage/MuTau_data_2018ABC_CMSSW1020/TauEmbedding_MuTau_data_2018ABC_CMSSW1020_Run2018A/1/merged_100.root" #mt embedded 18 test sample
 	#"root://cms-xrd-global.cern.ch///store/user/aakhmets/gc_storage/MuTau_data_2017_CMSSW944_gridka/TauEmbedding_MuTau_data_2017_CMSSW944_Run2017F/99/merged_9998.root"
 	#"root://cms-xrd-global.cern.ch//store/mc/RunIIFall17MiniAODv2/VBFHToTauTauUncorrelatedDecay_Filtered_M125_TuneCP5_13TeV-powheg-pythia8/MINIAODSIM/PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/60000/F2FF8AFB-DF01-EA11-9882-5065F381C251.root"#testsample with flat tau polarisation (tauspinner, 2017)
+	"root://cms-xrd-global.cern.ch///store/mc/RunIIAutumn18MiniAOD/SMS-TStauStau_ctau-0p01to10_TuneCP5_13TeV-madgraphMLM-pythia8/MINIAODSIM/GridpackScan_102X_upgrade2018_realistic_v15-v1/00000/0BE3F9B3-928B-3B49-9982-A9EA2F48C395.root"
 	),
   skipEvents = cms.untracked.uint32(0),
   #lumisToProcess = LumiList.LumiList(filename = 'json/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt').getVLuminosityBlockRange()
@@ -640,7 +642,8 @@ Skim = cms.untracked.uint32(0),
 # switches of collections
 GenParticles = cms.untracked.bool(storeGenParticles),
 GenJets = cms.untracked.bool(not isData),
-SusyInfo = cms.untracked.bool(not isData),
+SusyInfo = cms.untracked.bool(not isData and not SusyInfoLumiBlock),
+SusyInfoLumiBlock = cms.untracked.bool(not isData and SusyInfoLumiBlock),
 Trigger = cms.untracked.bool(True),
 RecPrimVertex = cms.untracked.bool(True),
 RecPrimVertexWithBS = cms.untracked.bool(True),

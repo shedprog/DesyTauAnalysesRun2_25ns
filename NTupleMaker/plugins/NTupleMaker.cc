@@ -60,6 +60,19 @@ typedef ROOT::Math::SVector<double, 3> SVector3; //// SVector: vector of size 3
 
 #include "DesyTauAnalyses/NTupleMaker/interface/genMatch.h"
 
+namespace susy_analysis {
+  //generalization for processing a line
+  void process(std::string line, char delim, std::vector<std::string>& fields)
+  {
+     std::stringstream ss(line);
+     std::string field;
+     while(std::getline(ss,field,delim)){
+             fields.push_back(field);
+     }
+  }
+}
+
+
 void NTupleMaker::computePCA(double * pv, double * refPoint, double * mom, double * pca) {
 
   double diff[3];
@@ -115,6 +128,7 @@ NTupleMaker::NTupleMaker(const edm::ParameterSet& iConfig) :
   // switches (collections)
   cgen(iConfig.getUntrackedParameter<bool>("GenParticles", false)),
   csusyinfo(iConfig.getUntrackedParameter<bool>("SusyInfo", false)),
+  csusyinfoLumiBlock(iConfig.getUntrackedParameter<bool>("SusyInfoLumiBlock", false)),
   ctrigger(iConfig.getUntrackedParameter<bool>("Trigger", false)),
   cbeamspot(iConfig.getUntrackedParameter<bool>("RecBeamSpot", false)),
   crectrack(iConfig.getUntrackedParameter<bool>("RecTrack", false)),
@@ -223,10 +237,14 @@ NTupleMaker::NTupleMaker(const edm::ParameterSet& iConfig) :
   RefittedwithBSPVToken_(consumes<RefitVertexCollection>(iConfig.getParameter<edm::InputTag>("RefittedwithBSPVCollectionTag"))),
   LHEToken_(consumes<LHEEventProduct>(iConfig.getParameter<edm::InputTag>("LHEEventProductTag"))),
   SusyMotherMassToken_(consumes<double>(iConfig.getParameter<edm::InputTag>("SusyMotherMassTag"))),
-  SusyLSPMassToken_(consumes<double>(iConfig.getParameter<edm::InputTag>("SusyLSPMassTag"))),
+  SusyLSPMassToken_(consumes<double>(iConfig.getParameter<edm::InputTag>("SusyLSPMassTag"))), 
+  genLumiHeaderToken_(consumes<GenLumiInfoHeader,edm::InLumi>(edm::InputTag("generator"))), // For SUSY info from LumiBlock
   htxsToken_(consumes<HTXS::HiggsClassification>(iConfig.getParameter<edm::InputTag>("htxsInfo"))),
   sampleName(iConfig.getUntrackedParameter<std::string>("SampleName", "Higgs")),
-  propagatorWithMaterial(0)
+  propagatorWithMaterial(0),
+  SusyMotherMass(-1),
+  SusyLSPMass(-1),
+  SusyLifeTime(-1)
 {
   setTauBranches = true;
 
@@ -1142,9 +1160,10 @@ void NTupleMaker::beginJob(){
   }
 
   // SUSY Info
-  if (csusyinfo) {
+  if (csusyinfo || csusyinfoLumiBlock) {
     tree->Branch("SusyMotherMass",&SusyMotherMass,"SusyMotherMass/F");
     tree->Branch("SusyLSPMass",&SusyLSPMass,"SusyLSPMass/F");
+    tree->Branch("SusyLifeTime",&SusyLifeTime,"SusyLifeTime/F");
   }
 
   // L1 objects
@@ -1676,6 +1695,31 @@ void NTupleMaker::beginLuminosityBlock(const edm::LuminosityBlock& iLumiBlock, c
       lumi_eventsprocessed = 0;
       lumi_eventsfiltered = 0;
     }
+
+  if (csusyinfoLumiBlock)
+    {
+      edm::Handle<GenLumiInfoHeader> gen_header;
+      iLumiBlock.getByToken(genLumiHeaderToken_, gen_header);
+      std::string model = gen_header->configDescription();
+
+      //strip newline
+      if(model.back()=='\n') model.pop_back();
+      std::vector<std::string> fields;
+      susy_analysis::process(model,'_',fields);
+
+      // Form of the string:
+      // TStauStauLL_<mstau>_<mlsp>_<ctau>
+
+      std::stringstream sfield1(fields.end()[-1]);
+      sfield1 >> SusyLifeTime;
+
+      std::stringstream sfield2(fields.end()[-2]);
+      sfield2 >> SusyLSPMass;
+
+      std::stringstream sfield3(fields.end()[-3]);
+      sfield3 >> SusyMotherMass;
+
+    }
 }
 
 void NTupleMaker::endLuminosityBlock(const edm::LuminosityBlock& iLumiBlock, const edm::EventSetup& iSetup)
@@ -1921,7 +1965,7 @@ void NTupleMaker::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 	}
       }
     }
-  if (csusyinfo) {
+  if (csusyinfo && !csusyinfoLumiBlock) {
     if(doDebug)  cout<<"add SUSY info"<< endl;
     AddSusyInfo(iEvent);
     //    std::cout << "Run = " << event_run << "   Lumi = " << event_luminosityblock << "   Event = " << event_nr << std::endl;
