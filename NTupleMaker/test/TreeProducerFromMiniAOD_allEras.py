@@ -7,10 +7,10 @@ isSingleMuonData = False # needed to record track collection for NMSSM ananlysis
 isEmbedded = False # set to true if you run over Z->TauTau embedded samples
 isRun2018D = False # needed for the correct Global Tag
 isHiggsSignal = False # Set to true if you run over higgs signal samples -> needed for STXS1p1 flags
-year = 2018
-period = '2018'
+year = 2016
+period = '2016'
 RunTauSpinnerProducer = False #only do this if you want to calculate tauspinner weights for a sample with two taus and flat tau polarisation
-SusyInfoLumiBlock = True
+SusyInfoLumiBlock = False
 
 # ============================================================================================
 if isEmbedded : isData = True
@@ -84,7 +84,9 @@ process.source = cms.Source("PoolSource",
 	#"root://cms-xrd-global.cern.ch///store/user/jbechtel/gc_storage/MuTau_data_2018ABC_CMSSW1020/TauEmbedding_MuTau_data_2018ABC_CMSSW1020_Run2018A/1/merged_100.root" #mt embedded 18 test sample
 	#"root://cms-xrd-global.cern.ch///store/user/aakhmets/gc_storage/MuTau_data_2017_CMSSW944_gridka/TauEmbedding_MuTau_data_2017_CMSSW944_Run2017F/99/merged_9998.root"
 	#"root://cms-xrd-global.cern.ch//store/mc/RunIIFall17MiniAODv2/VBFHToTauTauUncorrelatedDecay_Filtered_M125_TuneCP5_13TeV-powheg-pythia8/MINIAODSIM/PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/60000/F2FF8AFB-DF01-EA11-9882-5065F381C251.root"#testsample with flat tau polarisation (tauspinner, 2017)
-	"root://cms-xrd-global.cern.ch///store/mc/RunIIAutumn18MiniAOD/SMS-TStauStau_ctau-0p01to10_TuneCP5_13TeV-madgraphMLM-pythia8/MINIAODSIM/GridpackScan_102X_upgrade2018_realistic_v15-v1/00000/0BE3F9B3-928B-3B49-9982-A9EA2F48C395.root"
+	#"root://cms-xrd-global.cern.ch///store/mc/RunIIAutumn18MiniAOD/SMS-TStauStau_ctau-0p01to10_TuneCP5_13TeV-madgraphMLM-pythia8/MINIAODSIM/GridpackScan_102X_upgrade2018_realistic_v15-v1/00000/0BE3F9B3-928B-3B49-9982-A9EA2F48C395.root"
+	#"/store/mc/RunIISummer16MiniAODv3/SMS-TStauStau-Ewkino_lefthanded_dM-10to40_genHT-80_genMET-80_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUSummer16v3Fast_94X_mcRun2_asymptotic_v3-v1/20000/08640A00-AEE5-E911-9A30-0CC47AB0B828.root"
+	"root://cms-xrd-global.cern.ch//store/mc/RunIISummer16MiniAODv2/SMS-TStauStau_righthanded_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/MINIAODSIM/PUMoriond17_GridpackScan_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/110000/3ECC3044-61B7-E811-910A-10BF481A01E5.root"
 	),
   skipEvents = cms.untracked.uint32(0),
   #lumisToProcess = LumiList.LumiList(filename = 'json/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt').getVLuminosityBlockRange()

@@ -12,7 +12,6 @@ executable = $1
 transfer_executable = True
 universe            = vanilla
 getenv              = True
-Requirements        = OpSysAndVer == "SL6"
 
 output              = $2.out
 error               = $2.error

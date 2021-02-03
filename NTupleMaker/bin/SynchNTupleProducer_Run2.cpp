@@ -6,7 +6,6 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
-
 #include "TFile.h" 
 #include "TH1.h" 
 #include "TH2.h"
@@ -24,16 +23,12 @@
 #include "TLorentzVector.h"
 #include "TRandom.h"
 #include "TSystem.h"
-
 #include "TVector3.h"
 #include "TMatrix.h"
-
 #include "RooRealVar.h"
 #include "RooWorkspace.h"
-
 #include "DesyTauAnalyses/NTupleMaker/interface/Config.h"
 #include "DesyTauAnalyses/NTupleMaker/interface/AC1B.h"
-
 #include "DesyTauAnalyses/NTupleMaker/interface/Synch17Tree.h"
 #include "DesyTauAnalyses/NTupleMaker/interface/Synch17GenTree.h"
 #include "TauAnalysis/ClassicSVfit/interface/ClassicSVfit.h"
@@ -44,13 +39,10 @@
 #include "HTT-utilities/RecoilCorrections_KIT/interface/RecoilCorrector.h"
 #include "DesyTauAnalyses/NTupleMaker/interface/functionsSynch2017.h"
 #include "HiggsCPinTauDecays/IpCorrection/interface/IpCorrection.h"
-
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
-
 #include "FWCore/ParameterSet/interface/FileInPath.h"
-
 #include "DesyTauAnalyses/NTupleMaker/interface/Systematics_WIP.h"
 #include "DesyTauAnalyses/NTupleMaker/interface/LeptonScaleSys_WIP.h"
 #include "DesyTauAnalyses/NTupleMaker/interface/ZPtWeightSys_WIP.h"
@@ -65,13 +57,15 @@
 //#include "HTT-utilities/TauTriggerSFs2017/interface/TauTriggerSFs2017.h"
 #include "TauPOG/TauIDSFs/interface/TauIDSFTool.h"
 #include "TauAnalysisTools/TauTriggerSFs/interface/TauTriggerSFs2017.h"
-
 //#include "DesyTauAnalyses/NTupleMaker/interface/ImpactParameter.h"
 #include "HiggsCPinTauDecays/ImpactParameter/interface/ImpactParameter.h"
 #include "HTT-utilities/RecoilCorrections_KIT/interface/MEtSys.h"
 #include "HTTutilities/Jet2TauFakes/interface/FakeFactor.h"
 #include "JetMETCorrections/Modules/interface/JetResolution.h"
 #include "RooFunctor.h"
+#include "lester_mt2_bisect.h"
+#include "functionsSUSY.h"
+
 
 
 #define pi   3.14159265358979312
@@ -196,18 +190,18 @@ int main(int argc, char * argv[]){
   TString IpCorrFileNamePion(ipCorrFileNamePion);
   TString IpCorrFileNamePionBS(ipCorrFileNamePionBS);
 
-
   // tau trigger efficiency
   std::string channel;
   if (ch == "mt") channel = "mutau"; 
   if (ch == "et") channel = "etau";
 
-  TauTriggerSFs2017 *tauTriggerSF = new TauTriggerSFs2017(cmsswBase + "/src/TauAnalysisTools/TauTriggerSFs/data/tauTriggerEfficiencies" + to_string(era) + ".root", channel, to_string(era), "tight", "MVAv2");
+//  TauTriggerSFs2017 *tauTriggerSF = new TauTriggerSFs2017(cmsswBase + "/src/TauAnalysisTools/TauTriggerSFs/data/tauTriggerEfficiencies" + to_string(era) + ".root", channel, to_string(era), "MVAv2", "tight");
   std::string year_label;
   if (era == 2016) year_label = "2016Legacy";
   else if (era == 2017) year_label = "2017ReReco";
   else if (era == 2018) year_label = "2018ReReco";	
   else {std::cout << "year is not 2016, 2017, 2018 - exiting" << '\n'; exit(-1);}
+  //TODO adopt it to the Stau Selection
   TauIDSFTool *tauIDSF_medium = new TauIDSFTool(year_label, "DeepTau2017v2p1VSjet", "Medium", false);
 
   IpCorrection *ipLepton   = new IpCorrection(TString(cmsswBase) + "/src/" + IpCorrFileNameLepton);
@@ -375,6 +369,7 @@ int main(int argc, char * argv[]){
   const float shift_tes_lepfake_1p1p0_endcap_down ((ch == "et") ? FES_graph->GetErrorYlow(3) : 0.01 );
 
   // lep->tau FR, DeepTau WPs
+  //TODO check the working points
   const string leptauFake_wpVsEle = cfg.get<string>("LeptauFake_wpVsEle");
   const string leptauFake_wpVsMu = cfg.get<string>("LeptauFake_wpVsMu");
   TString LeptauFake_wpVsEle(leptauFake_wpVsEle);
@@ -455,7 +450,8 @@ int main(int argc, char * argv[]){
   if (argc > 5)
     jfile = atoi(argv[5]);
   
-  // create input files list
+  cout<<" create input files list "<<endl;
+
   std::vector<std::string> fileList;  
   int NumberOfFiles = 0;
   if (infiles.find(".root") != std::string::npos){
@@ -914,7 +910,7 @@ int main(int argc, char * argv[]){
       	gentree->Fill();
       }
 
-      //      std::cout << "OK!!!!!!!!" << std::endl;
+            std::cout << "OK!!!!!!!!" << std::endl;
 
       //Skip events not passing the MET filters, if applied
       bool passed_all_met_filters = passedAllMetFilters(&analysisTree, met_filters_list);
@@ -1014,7 +1010,6 @@ int main(int argc, char * argv[]){
     
       // as of 30 June 2020 electron ES in Embedded samples isn't corrected in BigNTuples, so it needs to be applied downstream
       float sf_eleES = 1.0;   
-
       //lepton selection
       vector<int> leptons; leptons.clear();
       if(ch == "et"){
@@ -1043,6 +1038,7 @@ int main(int argc, char * argv[]){
           if (fabs(analysisTree.muon_dxy[im]) >= dxyLeptonCut) continue;
           if (fabs(analysisTree.muon_dz[im]) >= dzLeptonCut) continue;
           if (!muonMediumId) continue;
+	
           leptons.push_back(im);
 	}
       }
@@ -1102,7 +1098,7 @@ int main(int argc, char * argv[]){
             lep_pt  = sf_eleES*analysisTree.electron_pt[lIndex];
             lep_eta = analysisTree.electron_eta[lIndex]; 
             lep_phi = analysisTree.electron_phi[lIndex];
-          }
+  	 }
           counter[7]++;
     
           float sortIsoTau = analysisTree.tau_byDeepTau2017v2p1VSjetraw[tIndex];
@@ -1141,7 +1137,7 @@ int main(int argc, char * argv[]){
         } // lepton loop
       } // tau loop
     
-      //      std::cout << "OK1" << std::endl;
+            std::cout << "OK1" << std::endl;
 
       if (leptonIndex < 0) continue;
       if (tauIndex < 0) continue;
@@ -1163,7 +1159,7 @@ int main(int argc, char * argv[]){
       	lep_pt  = sf_eleES*analysisTree.electron_pt[leptonIndex];
       	lep_eta = analysisTree.electron_eta[leptonIndex]; 
       	lep_phi = analysisTree.electron_phi[leptonIndex];
-      }
+	}
 
 
       ////////////////////////////////////////////////////////////
@@ -1927,6 +1923,9 @@ int main(int argc, char * argv[]){
       	}
 	}*/
 
+      //TODO Fix
+      LeptauFake_wpVsMu =  "Tight";
+      LeptauFake_wpVsEle = "VLoose"; 
       if(!isData){
 	if(otree->gen_match_2==2||otree->gen_match_2==4){
 	  TFile muTauFRfile(TString(cmsswBase)+"/src/TauPOG/TauIDSFs/data/TauID_SF_eta_DeepTau2017v2p1VSmu_"+year_label+".root"); 
@@ -2097,7 +2096,17 @@ int main(int argc, char * argv[]){
       
       TLorentzVector dileptonLV = leptonLV + tauLV;
       otree->m_vis = dileptonLV.M();
-      otree->pt_tt = (dileptonLV+metLV).Pt();   
+      otree->pt_tt = (dileptonLV + metLV).Pt();   
+
+      double mcta = sqrt( 2*leptonLV.Pt()*tauLV.Pt()*(1+cos(leptonLV.Phi()-tauLV.Phi())) );
+      otree->mcta =mcta;
+      //double Mt2as get_mT2(muonMass, leptonLV.Px(), leptonLV.Py(),tauMass,tauLV.Px(),TauV.Py(),metLV.Px(),metLV.Py(),0,0,0);
+      ///otree->Mt2as = Mt2as;
+      double dPhiLepMET=dPhiFrom2P( leptonLV.Px(), leptonLV.Py(), metLV.Px(),  metLV.Py() );
+      otree->dPhiLepMET = dPhiLepMET;
+      double dPhiTauMET=dPhiFrom2P( tauLV.Px(), tauLV.Py(), metLV.Px(),  metLV.Py() );
+      otree->dPhiTauMET = dPhiTauMET;
+
       if (usePuppiMET)
 	otree->pt_tt = (dileptonLV+puppimetLV).Pt();
     
@@ -2148,7 +2157,7 @@ int main(int argc, char * argv[]){
     
       otree->pzetavis  = vectorVisX*zetaX + vectorVisY*zetaY;
       otree->pzetamiss = otree->met*TMath::Cos(otree->metphi)*zetaX + otree->met*TMath::Sin(otree->metphi)*zetaY;
-      otree->puppipzetamiss = otree->puppimet*TMath::Cos(otree->puppimetphi)*zetaX + otree->puppimet*TMath::Sin(otree->puppimetphi)*zetaY;
+
       counter[14]++;
     
       bool isSRevent = true; //boolean used to compute SVFit variables only on SR events, it is set to true when running Synchronization to run SVFit on all events

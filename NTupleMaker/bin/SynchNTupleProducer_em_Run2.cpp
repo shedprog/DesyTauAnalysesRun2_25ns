@@ -69,7 +69,6 @@
 #include "JetMETCorrections/Modules/interface/JetResolution.h"
 #include "RooFunctor.h"
 
-
 #define pi   3.14159265358979312
 #define d2r  1.74532925199432955e-02
 #define r2d  57.2957795130823229
@@ -234,7 +233,7 @@ int main(int argc, char * argv[]){
   }
 
   const int era = cfg.get<int>("era");
-  const bool Synch            = cfg.get<bool>("Synch");
+  const bool synch            = cfg.get<bool>("Synch");
   const bool ApplyPUweight    = cfg.get<bool>("ApplyPUweight"); 
   const bool ApplyLepSF       = cfg.get<bool>("ApplyLepSF"); 
   const bool ApplySVFit       = cfg.get<bool>("ApplySVFit");
@@ -243,7 +242,6 @@ int main(int argc, char * argv[]){
   const bool ApplySystShift   = cfg.get<bool>("ApplySystShift");
   const bool ApplyMetFilters  = cfg.get<bool>("ApplyMetFilters");
   const bool usePuppiMET      = cfg.get<bool>("UsePuppiMET");
-  const bool ApplyIpCorrection = cfg.get<bool>("ApplyIpCorrection");
   const bool ApplyBTagCP5Correction = cfg.get<bool>("ApplyBTagCP5Correction");
 
   // JER
@@ -255,26 +253,11 @@ int main(int argc, char * argv[]){
   const string pileUpInMCFile = cfg.get<string>("pileUpInMCFile");
   const string pileUpforMC = cfg.get<string>("pileUpforMC");
 
-  const string ipCorrFileNameMuon   = cfg.get<string>("IpCorrFileNameMuon");
-  const string ipCorrFileNameMuonBS = cfg.get<string>("IpCorrFileNameMuonBS");
-  const string ipCorrFileNameElec     = cfg.get<string>("IpCorrFileNameElec");
-  const string ipCorrFileNameElecBS   = cfg.get<string>("IpCorrFileNameElecBS");
-
-  TString IpCorrFileNameMuon(ipCorrFileNameMuon);
-  TString IpCorrFileNameMuonBS(ipCorrFileNameMuonBS);
-  TString IpCorrFileNameElec(ipCorrFileNameElec);
-  TString IpCorrFileNameElecBS(ipCorrFileNameElecBS);
-
   std::string year_label;
   if (era == 2016) year_label = "2016Legacy";
   else if (era == 2017) year_label = "2017ReReco";
   else if (era == 2018) year_label = "2018ReReco";	
   else {std::cout << "year is not 2016, 2017, 2018 - exiting" << '\n'; exit(-1);}
-
-  IpCorrection *CorrectorIpMuon   = new IpCorrection(TString(cmsswBase) + "/src/" + IpCorrFileNameMuon);
-  IpCorrection *CorrectorIpMuonBS = new IpCorrection(TString(cmsswBase) + "/src/" + IpCorrFileNameMuonBS);  
-  IpCorrection *CorrectorIpElec   = new IpCorrection(TString(cmsswBase) + "/src/" + IpCorrFileNameElec);
-  IpCorrection *CorrectorIpElecBS = new IpCorrection(TString(cmsswBase) + "/src/" + IpCorrFileNameElecBS);  
 
   //svfit
   const string svFitPtResFile = TString(TString(cmsswBase) + "/src/" + TString(cfg.get<string>("svFitPtResFile"))).Data();
@@ -310,11 +293,15 @@ int main(int argc, char * argv[]){
   JME::JetResolutionScaleFactor resolution_sf = *m_scale_factor_from_file;
 
   cout<<"using "<<BTagAlgorithm<<endl;
-  BTagCalibration calib(BTagAlgorithm, BtagSfFile);
-  BTagCalibrationReader reader_B(BTagEntry::OP_MEDIUM, "central",{"up","down"});
-  BTagCalibrationReader reader_C(BTagEntry::OP_MEDIUM, "central");
-  BTagCalibrationReader reader_Light(BTagEntry::OP_MEDIUM, "central");
+  BTagCalibration calib;
+  BTagCalibrationReader reader_B;
+  BTagCalibrationReader reader_C;
+  BTagCalibrationReader reader_Light;
   if(ApplyBTagScaling){
+    calib = BTagCalibration(BTagAlgorithm, BtagSfFile);
+    reader_B = BTagCalibrationReader(BTagEntry::OP_MEDIUM, "central",{"up","down"});
+    reader_C = BTagCalibrationReader(BTagEntry::OP_MEDIUM, "central",{"up","down"});
+    reader_Light = BTagCalibrationReader(BTagEntry::OP_MEDIUM, "central",{"up","down"});
     reader_B.load(calib, BTagEntry::FLAV_B, "comb");
     reader_C.load(calib, BTagEntry::FLAV_C, "comb");
     reader_Light.load(calib, BTagEntry::FLAV_UDSG, "incl");
@@ -358,11 +345,14 @@ int main(int argc, char * argv[]){
   // MET Recoil Corrections
   const bool isDY = (infiles.find("DY") != string::npos) || (infiles.find("EWKZ") != string::npos);//Corrections that should be applied on EWKZ are the same needed for DY
   const bool isWJets = (infiles.find("WJets") != string::npos) || (infiles.find("W1Jets") != string::npos) || (infiles.find("W2Jets") != string::npos) || (infiles.find("W3Jets") != string::npos) || (infiles.find("W4Jets") != string::npos) || (infiles.find("EWK") != string::npos);
-  const bool isHiggs = (infiles.find("VBFHTo")!= string::npos) || (infiles.find("WminusHTo")!= string::npos) || (infiles.find("WplusHTo")!= string::npos) || (infiles.find("ZHTo")!= string::npos) || (infiles.find("GluGluHTo")!= string::npos);
+  const bool isHToTauTau = infiles.find("HToTauTau") != string::npos;
+  const bool isHToWW = infiles.find("HToWW") != string::npos;
   const bool isEWKZ =  infiles.find("EWKZ") != string::npos;
   const bool isMG = infiles.find("madgraph") != string::npos;
   const bool isMSSMsignal =  (infiles.find("SUSYGluGluToHToTauTau")!= string::npos) || (infiles.find("SUSYGluGluToBBHToTauTau")!= string::npos);
-  const bool isTTbar = infiles.find("TT") != string::npos;
+  const bool isTTbar = (infiles.find("TT_INCL") != string::npos) || (infiles.find("TTTo") != string::npos);
+
+  bool isHiggs = isHToTauTau || isHToWW; 
 
   const bool isEmbedded = infiles.find("Embed") != string::npos;
 
@@ -420,6 +410,7 @@ int main(int argc, char * argv[]){
   const string mu23ele12DzFilter = cfg.get<string>("Mu23Ele12DzFilter");
   const string mu8ele23DzFilter = cfg.get<string>("Mu8Ele23DzFilter");
 
+  //TODO Isolation Muon and Electron
   float dRIsoMuon = 0.4;
   if (isMuonIsoR03) dRIsoMuon = 0.3;
   float dRIsoElectron = 0.4;
@@ -448,10 +439,17 @@ int main(int argc, char * argv[]){
 
   // correction workspace
   const string CorrectionWorkspaceFileName = cfg.get<string>("CorrectionWorkspaceFileName");
+  const string CorrectionWorkspaceFileNameKIT = cfg.get<string>("CorrectionWorkspaceFileNameKIT");
 
   bool triggerEmbed2017 = false;
   float ptTriggerEmbed2017 = 40;
   float etaTriggerEmbed2017 = 1.479;
+  float dzFilterEff_data = 0.95;
+  float dzFilterEff_mc = 0.95;
+  if (era==2016) {
+    dzFilterEff_data = 0.98;
+    dzFilterEff_mc = 1.0;
+  }
 
   if (era==2017&&isEmbedded)
     triggerEmbed2017 = true;
@@ -470,6 +468,7 @@ int main(int argc, char * argv[]){
     jfile = atoi(argv[4]);
   
   // create input files list
+  cout<<" create input files lis "<<endl;
   std::vector<std::string> fileList;  
   int NumberOfFiles = 0;
   if (infiles.find(".root") != std::string::npos){
@@ -529,13 +528,21 @@ int main(int argc, char * argv[]){
 
   // Workspace with corrections
   TString workspace_filename = TString(cmsswBase) + "/src/" + CorrectionWorkspaceFileName;
+  TString workspace_filename_kit = TString(cmsswBase) + "/src/" + CorrectionWorkspaceFileNameKIT;
   cout << "Taking correction workspace from " << workspace_filename << endl;
   TFile *f_workspace = new TFile(workspace_filename, "read");
+  TFile *f_workspace_kit = new TFile(workspace_filename_kit, "read");
   if (f_workspace->IsZombie()) {
     std::cout << " workspace file " << workspace_filename << " not found. Please check. " << std::endl;
      exit(-1);
    }
+  if (f_workspace_kit->IsZombie()) {
+    std::cout << " workspace file " << workspace_filename_kit << " not found. Please check. " << std::endl;
+     exit(-1);
+   }
+
   RooWorkspace *w = (RooWorkspace*)f_workspace->Get("w");
+  RooWorkspace *correctionWS = (RooWorkspace*)f_workspace_kit->Get("w");
 
   // Zpt reweighting for LO DY samples 
   TFile *f_zptweight = new TFile(TString(cmsswBase) + "/src/" + ZptweightFile, "read");
@@ -589,9 +596,9 @@ int main(int argc, char * argv[]){
   TH1D *nWeightedEventsH = new TH1D("nWeightedEvents", "", 1, -0.5, 0.5);
   
   TTree *tree = new TTree("TauCheck", "TauCheck");
-  TTree *gtree = new TTree("GenTauCheck", "GenTauCheck");
+  //  TTree *gtree = new TTree("GenTauCheck", "GenTauCheck");
   Synch17Tree *otree = new Synch17Tree(tree,true);
-  Synch17GenTree *gentree = new Synch17GenTree(gtree);
+  //  Synch17GenTree *gentree = new Synch17GenTree(gtree);
     
   int nTotalFiles = 0;
   int nEvents = 0;
@@ -612,6 +619,7 @@ int main(int argc, char * argv[]){
   ZPtWeightSys* zPtWeightSys = 0;
   TopPtWeightSys* topPtWeightSys = 0;
   BtagSys * btagSys = 0;
+  BtagSys * mistagSys = 0;
   std::vector<JetEnergyScaleSys*> jetEnergyScaleSys;
   JESUncertainties * jecUncertainties = 0;
 
@@ -625,24 +633,25 @@ int main(int argc, char * argv[]){
   if((!isData||isEmbedded) && ApplySystShift){
 
     muonScaleSys = new MuonScaleSys(otree);
-    muonScaleSys->SetUseSVFit(ApplySVFit);
-    muonScaleSys->SetUseFastMTT(ApplyFastMTT);
+    muonScaleSys->SetUseSVFit(false);
+    muonScaleSys->SetUseFastMTT(false);
     muonScaleSys->SetSvFitVisPtResolution(inputFile_visPtResolution);
     muonScaleSys->SetUsePuppiMET(usePuppiMET);
     
     electronScaleSys = new ElectronScaleSys(otree);
-    electronScaleSys->SetUseSVFit(ApplySVFit);
-    electronScaleSys->SetUseFastMTT(ApplyFastMTT);
+    electronScaleSys->SetUseSVFit(false);
+    electronScaleSys->SetUseFastMTT(false);
     electronScaleSys->SetSvFitVisPtResolution(inputFile_visPtResolution);
     electronScaleSys->SetUsePuppiMET(usePuppiMET);
 
     // systematics only for MC
     if (!isEmbedded) {
-      if (!isDY && !isWJets && !isHiggs) {
-	btagSys = new BtagSys(otree,TString("Btag"));
-	btagSys->SetConfig(&cfg);
-	btagSys->SetBtagScaling(&inputs_btag_scaling_medium);
-      }
+      btagSys = new BtagSys(otree,TString("Btag"));
+      btagSys->SetConfig(&cfg);
+      btagSys->SetBtagScaling(&inputs_btag_scaling_medium);
+      mistagSys = new BtagSys(otree,TString("Mistag"));
+      mistagSys->SetConfig(&cfg);
+      mistagSys->SetBtagScaling(&inputs_btag_scaling_medium);
       if (ApplyRecoilCorrections) {
 	if (usePuppiMET) {
 	  for (unsigned int i = 0; i < recoilSysNames.size(); ++i) {
@@ -663,11 +672,11 @@ int main(int argc, char * argv[]){
       if (cfg.get<bool>("splitJES")){
 	JESUncertainties *jecUncertainties;
 	if (era==2016) 
-	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/Regrouped_Summer16_07Aug2017_V11_MC_UncertaintySources_AK4PFchs.txt");
+	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/RegroupedV2_Summer16_07Aug2017_V11_MC_UncertaintySources_AK4PFchs.txt");
 	else if (era==2017)
-	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/Regrouped_Fall17_17Nov2017_V32_MC_UncertaintySources_AK4PFchs.txt");
+	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/RegroupedV2_Fall17_17Nov2017_V32_MC_UncertaintySources_AK4PFchs.txt");
 	else 
-	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/Regrouped_Autumn18_V19_MC_UncertaintySources_AK4PFchs.txt");
+	  jecUncertainties = new JESUncertainties("DesyTauAnalyses/NTupleMaker/data/RegroupedV2_Autumn18_V19_MC_UncertaintySources_AK4PFchs.txt");
 	std::vector<std::string> JESnames = jecUncertainties->getUncertNames();
 	for (unsigned int i = 0; i < JESnames.size(); i++) std::cout << "i: "<< i << ", JESnames.at(i) : " << JESnames.at(i) << std::endl;
 	for (unsigned int i = 0; i < JESnames.size(); i++){
@@ -705,6 +714,10 @@ int main(int argc, char * argv[]){
     std::cout << "file " << iF + 1 << " out of " << fileList.size() << " filename : " << fileList[iF] << std::endl;
     
     TFile *file_ = TFile::Open(fileList[iF].data());
+    if (file_->IsZombie()) {
+      cout << "cannot open file " << fileList[iF].data() << std::endl;
+      continue;
+    }
     TTree *_tree = (TTree*)file_->Get(TString(ntupleName));  
     if (_tree == NULL) {
       std::cout << "TTree " << ntupleName << " is absent" << std::endl;
@@ -739,8 +752,8 @@ int main(int argc, char * argv[]){
     AC1B analysisTree(_tree);
     // set AC1B for JES Btag and MET systematics
     if ( !isData && !isEmbedded && ApplySystShift) {
-      if (!isDY && !isWJets && !isHiggs)
 	btagSys->SetAC1B(&analysisTree);
+	mistagSys->SetAC1B(&analysisTree);
       for (unsigned int i = 0; i < jetEnergyScaleSys.size(); i++)
       	(jetEnergyScaleSys.at(i))->SetAC1B(&analysisTree);
       for (unsigned int i = 0; i < metSys.size(); i++)
@@ -762,15 +775,15 @@ int main(int argc, char * argv[]){
       nEvents++;
 
       // filling generator tree
-      if (!isData){
-	initializeGenTree(gentree);
-      	FillGenTree(&analysisTree,gentree);
-      	gentree->Fill();
-      }
+      //      if (!isData){
+      //	initializeGenTree(gentree);
+      //      	FillGenTree(&analysisTree,gentree);
+      //      	gentree->Fill();
+      //      }
 
       //Skip events not passing the MET filters, if applied
       bool passed_all_met_filters = passedAllMetFilters(&analysisTree, met_filters_list);
-      if (ApplyMetFilters && !Synch && !passed_all_met_filters) continue;
+      if (ApplyMetFilters && !synch && !passed_all_met_filters) continue;
       otree->passedAllMetFilters = passed_all_met_filters;
       
       // accessing trigger info ====
@@ -820,26 +833,6 @@ int main(int argc, char * argv[]){
       otree->npv = analysisTree.primvertex_count;
       otree->npu = analysisTree.numtruepileupinteractions;// numpileupinteractions;
       otree->rho = analysisTree.rho;
-
-      // embedded weight
-      otree->embweight = 1;
-      if (isEmbedded) {
-      	otree->embweight = getEmbeddedWeight(&analysisTree, w);
-	if (otree->embweight>10.0)
-	  cout << "warning : embedding weight = " << otree->embweight << endl;
-      }
-
-      // PU weight
-      if (ApplyPUweight) 
-        otree->puweight = float(PUofficial->get_PUweight(double(analysisTree.numtruepileupinteractions)));
-
-      // generator weight
-      if(!isData || isEmbedded){
-        otree->mcweight = analysisTree.genweight;
-        otree->gen_noutgoing = analysisTree.genparticles_noutgoing;
-	if (isEmbedded&&otree->mcweight>1.0)
-	  otree->mcweight = 0.0;
-      }
 
       // selecting electrons      
       float sf_eleES = 1.0;   
@@ -893,7 +886,7 @@ int main(int argc, char * argv[]){
       //      std::cout << "m : pt = " << otree->pt_2 << "  eta = " << otree->eta_2 << "  phi = " << otree->phi_2 << std::endl;
 
       //all criterua passed, we fill vertices here;	
-      FillVertices(&analysisTree, otree, isData);
+      //      FillVertices(&analysisTree, otree, isData);
       
       //      std::cout << "fill vertices" << std::endl;
 
@@ -970,6 +963,20 @@ int main(int argc, char * argv[]){
       }    
       otree->singleLepTrigger = otree->trg_singleelectron || otree->trg_singlemuon;
     
+      bool trigger_fired = otree->trg_singleelectron || otree->trg_singlemuon || otree->trg_ehigh_mulow || otree->trg_muhigh_elow;
+
+      //extra lepton veto
+      TString chE("et");
+      TString chMu("mt");
+      otree->extraelec_veto = extra_electron_veto(electronIndex, chE, &cfg, &analysisTree, era, isEmbedded);
+      otree->extramuon_veto = extra_muon_veto(muonIndex, chMu, &cfg, &analysisTree, isData);
+
+
+      bool isSRevent = otree->iso_1<0.15&&otree->iso_2<0.4&&otree->extramuon_veto<0.5&&otree->extraelec_veto<0.5&&trigger_fired;
+
+      // when producing synch tuples for final datacards reduces the size of tuples.
+      if (ApplySystShift&&!isSRevent) continue;
+
       //      std::cout << "after trigger" << std::endl;
 
       // initialize JER (including data and embedded) 
@@ -1006,15 +1013,15 @@ int main(int argc, char * argv[]){
 
       otree->trigweight = 1;
       otree->trigweightSingle = 1;
-      otree->trigweightExcl = 1;
+      otree->trigweightEMu = 1;
 
       otree->effweight = 1;
       otree->effweightSingle = 1;
-      otree->effweightExcl = 1;
+      otree->effweightEMu = 1;
 
       otree->weight = 1;
       otree->weightSingle = 1;
-      otree->weightExcl = 1;
+      otree->weightEMu = 1;
 
       otree->trigweight_l_lt = 1;
       otree->trigweight_t_lt = 1;
@@ -1043,6 +1050,24 @@ int main(int argc, char * argv[]){
       	TString suffixRatio = "ratio";
       	if (isEmbedded) {suffix = "embed"; suffixRatio = "embed_ratio";}
 
+	correctionWS->var("e_pt")->setVal(otree->pt_1);
+	correctionWS->var("e_eta")->setVal(otree->eta_1);
+	correctionWS->var("e_iso")->setVal(otree->iso_1);
+	correctionWS->var("m_pt")->setVal(otree->pt_2);
+	correctionWS->var("m_eta")->setVal(otree->eta_2);
+	correctionWS->var("m_iso")->setVal(otree->iso_2);
+
+	/*
+	float eff_data_trig_mhigh_kit = correctionWS->function("m_trg_23_binned_ic_data")->getVal();
+	float eff_data_trig_mlow_kit = correctionWS->function("m_trg_8_binned_ic_data")->getVal();
+	float eff_mc_trig_mhigh_kit = correctionWS->function("m_trg_23_binned_ic_"+suffix)->getVal();
+	float eff_mc_trig_mlow_kit = correctionWS->function("m_trg_8_binned_ic_"+suffix)->getVal();
+
+	float eff_data_trig_ehigh_kit = correctionWS->function("e_trg_23_binned_ic_data")->getVal();
+	float eff_data_trig_elow_kit = correctionWS->function("e_trg_12_binned_ic_data")->getVal();
+	float eff_mc_trig_ehigh_kit = correctionWS->function("e_trg_23_binned_ic_"+suffix)->getVal();
+	float eff_mc_trig_elow_kit = correctionWS->function("e_trg_12_binned_ic_"+suffix)->getVal();
+	*/
 	// muon weights
 	w->var("m_pt")->setVal(otree->pt_2);
 	w->var("m_eta")->setVal(otree->eta_2);
@@ -1052,10 +1077,10 @@ int main(int argc, char * argv[]){
 	eff_mc_trig_m = w->function("m_trg_ic_" + suffix)->getVal();
 	sf_trig_m = w->function("m_trg_ic_" + suffixRatio)->getVal();
 
-	eff_data_trig_mhigh = w->function("m_trg_23_binned_ic_data")->getVal();
-	eff_data_trig_mlow = w->function("m_trg_8_binned_ic_data")->getVal();
-	eff_mc_trig_mhigh = w->function("m_trg_23_binned_ic_"+suffix)->getVal();
-	eff_mc_trig_mlow = w->function("m_trg_8_binned_ic_"+suffix)->getVal();
+	eff_data_trig_mhigh = w->function("m_trg_23_ic_data")->getVal();
+	eff_data_trig_mlow = w->function("m_trg_8_ic_data")->getVal();
+	eff_mc_trig_mhigh = w->function("m_trg_23_ic_"+suffix)->getVal();
+	eff_mc_trig_mlow = w->function("m_trg_8_ic_"+suffix)->getVal();
 
 	otree->idisoweight_2 = w->function("m_idiso_ic_" + suffixRatio)->getVal();
 	otree->idisoweight_antiiso_2 = w->function("m_idiso_ic_" + suffixRatio)->getVal();
@@ -1069,10 +1094,18 @@ int main(int argc, char * argv[]){
 	eff_mc_trig_e = w->function("e_trg_ic_" + suffix)->getVal();
 	sf_trig_e = w->function("e_trg_ic_" + suffixRatio)->getVal();
 
-	eff_data_trig_ehigh = w->function("e_trg_23_binned_ic_data")->getVal();
-	eff_data_trig_elow = w->function("e_trg_12_binned_ic_data")->getVal();
-	eff_mc_trig_ehigh = w->function("e_trg_23_binned_ic_"+suffix)->getVal();
-	eff_mc_trig_elow = w->function("e_trg_12_binned_ic_"+suffix)->getVal();
+	eff_data_trig_ehigh = w->function("e_trg_23_ic_data")->getVal();
+	eff_data_trig_elow = w->function("e_trg_12_ic_data")->getVal();
+	eff_mc_trig_ehigh = w->function("e_trg_23_ic_"+suffix)->getVal();
+	eff_mc_trig_elow = w->function("e_trg_12_ic_"+suffix)->getVal();
+
+	/*
+	std::cout << "eff_data_trig_mhigh : " << eff_data_trig_mhigh << "  " << eff_data_trig_mhigh_kit << std::endl;
+	std::cout << "eff_mc_trig_mhigh   :  " << eff_mc_trig_mhigh << "  " << eff_mc_trig_mhigh_kit << std::endl;
+	std::cout << "eff_data_trig_mlow : " << eff_data_trig_mlow << "  " << eff_data_trig_mlow_kit << std::endl;
+	std::cout << "eff_mc_trig_mlow   :  " << eff_mc_trig_mlow << "  " << eff_mc_trig_mlow_kit << std::endl;
+	std::cout << std::endl;
+	*/
 
 	if (triggerEmbed2017) {
 	  if (otree->pt_1<ptTriggerEmbed2017&&fabs(otree->eta_1)>etaTriggerEmbed2017) {
@@ -1084,23 +1117,97 @@ int main(int argc, char * argv[]){
 	otree->idisoweight_1 = w->function("e_idiso_ic_" + suffixRatio)->getVal();
 	otree->idisoweight_antiiso_1 = w->function("e_idiso_ic_" + suffixRatio)->getVal();
 	otree->trkeffweight_1 = w->function("e_trk_" + suffixRatio)->getVal();
+	
+	float isoweight_1_kit = 1.0;
+	float isoweight_2_kit = 1.0;
+	float trkeffweight_1_kit = 1.0;
+	float trkeffweight_2_kit = 1.0;
 
+	// scale factors (from KIT)
+	if (era==2016){
+	  if (isEmbedded) {
+	    isoweight_1_kit = correctionWS->function("e_idiso_ratio_emb")->getVal();
+	    isoweight_2_kit = correctionWS->function("m_idlooseiso_binned_ic_embed_ratio")->getVal();
+	  }
+	  else {
+	    isoweight_1_kit = correctionWS->function("e_idiso_ratio")->getVal();
+	    isoweight_2_kit = correctionWS->function("m_idlooseiso_binned_ic_ratio")->getVal();
+	  }
+	}
+	else{
+	  if (isEmbedded) {
+	    isoweight_1_kit = correctionWS->function("e_id90_embed_kit_ratio")->getVal() * correctionWS->function("e_iso_embed_kit_ratio")->getVal();
+	    isoweight_2_kit = correctionWS->function("m_looseiso_ic_embed_ratio")->getVal()*correctionWS->function("m_id_embed_kit_ratio")->getVal();
+	  }
+	  else {
+	    isoweight_1_kit = correctionWS->function("e_id90_kit_ratio")->getVal() * correctionWS->function("e_iso_kit_ratio")->getVal();
+	    isoweight_2_kit = correctionWS->function("m_looseiso_ic_ratio")->getVal()*correctionWS->function("m_id_kit_ratio")->getVal();
+	  }
+	}
+	if (!isEmbedded){
+	  correctionWS->var("e_pt")->setVal(otree->pt_1);
+	  correctionWS->var("e_eta")->setVal(otree->eta_1);
+	  if (era == 2018) trkeffweight_1_kit = correctionWS->function("e_trk_ratio")->getVal();
+	  correctionWS->var("m_eta")->setVal(otree->eta_2);
+	  correctionWS->var("m_pt")->setVal(otree->pt_2);
+	  if (era==2016 || era==2018) 
+	    trkeffweight_2_kit = correctionWS->function("m_trk_ratio")->getVal();
+	}
+	if (era == 2017) trkeffweight_1_kit = correctionWS->function("e_trk_ratio")->getVal();
+	//	isoweight_1_kit *= trkeffweight_1_kit;
+	//	isoweight_2_kit *= trkeffweight_2_kit;
+	// KIT SF
+	/*
+	if (otree->pt_1>50.&&otree->iso_1>0.25) {
+	  std::cout << "pt_1 = " << otree->pt_1 << std::endl;
+	  std::cout << "  idiso_ic = " << otree->idisoweight_1 
+		    << "  trk_ic = " << otree->trkeffweight_1 << std::endl;
+	  std::cout << "  idiso_kit = " << isoweight_1_kit 
+		    << "  trk_kit = " << trkeffweight_1_kit << std::endl;
+	}
+	if (otree->pt_2<50.&&otree->iso_2>0.25) {
+	  std::cout << "pt_2 = " << otree->pt_2 << std::endl;
+	  std::cout << "  idiso_ic = " << otree->idisoweight_2 
+		    << "  trk_ic = " << otree->trkeffweight_2 << std::endl;
+	  std::cout << "  idiso_kit = " << isoweight_2_kit 
+		    << "  trk_kit = " << trkeffweight_2_kit << std::endl;
+	}
+	*/
+
+	otree->idisoweight_1 = isoweight_1_kit;
+	otree->idisoweight_2 = isoweight_2_kit;
+	otree->trkeffweight_1 = trkeffweight_1_kit;
+	otree->trkeffweight_2 = trkeffweight_2_kit;
+	
 	otree->trigweight_1 = sf_trig_e;
 	otree->trigweight_2 = sf_trig_m;
 	
+	//  singleLep trigger
+	if (otree->pt_1<ptElectronSingleCut) {
+	  eff_data_trig_e = 0.0;
+	  eff_mc_trig_e = 0.0;
+	}
+	if (otree->pt_2<ptMuonSingleCut) {
+	  eff_data_trig_m = 0.0;
+	  eff_mc_trig_m = 0.0;
+	}
 	float eff_single_data = 1.0 - (1.0-eff_data_trig_e)*(1.0-eff_data_trig_m);
 	float eff_single_mc   = 1.0 - (1.0-eff_mc_trig_e)  *(1.0-eff_mc_trig_m);
-	if (eff_single_mc>1e-3) 
-	  otree->trigweightSingle = eff_single_data/eff_single_mc;
-	else
-	  otree->trigweightSingle = 1.0;
 
-	if (otree->pt_1<ptElectronSingleCut)
-	  otree->trigweightSingle = sf_trig_m;
-	if (otree->pt_2<ptMuonSingleCut)
-	  otree->trigweightSingle = sf_trig_e;
-	if (otree->pt_1<ptElectronSingleCut&&otree->pt_2<ptMuonSingleCut)
-	  otree->trigweightSingle = 0;
+	if (eff_single_mc<1e-3||eff_single_data<1e-3) 
+	  otree->trigweightSingle = 0.0;
+	else
+	  otree->trigweightSingle = eff_single_data/eff_single_mc;
+
+	// e-mu trigger
+	if (otree->pt_1<ptElectronHighCut) {
+	  eff_data_trig_ehigh = 0;
+	  eff_mc_trig_ehigh = 0;
+	}
+	if (otree->pt_2<ptMuonHighCut) {
+	  eff_data_trig_mhigh = 0;
+          eff_mc_trig_mhigh = 0;
+	}
 
 	float eff_emu_data = 
 	  eff_data_trig_mhigh*eff_data_trig_elow + 
@@ -1109,50 +1216,133 @@ int main(int argc, char * argv[]){
 	float eff_emu_mc = 
 	  eff_mc_trig_mhigh*eff_mc_trig_elow + 
 	  eff_mc_trig_mlow*eff_mc_trig_ehigh -
-	  eff_mc_trig_mhigh*eff_mc_trig_ehigh;
+	  eff_mc_trig_mhigh*eff_mc_trig_ehigh;	
 
-	if (eff_emu_mc>1e-3)
-	  otree->trigweightExcl = eff_emu_data/eff_emu_mc;
+	if (eff_emu_mc<1e-3||eff_emu_data<1e-3)
+	  otree->trigweightEMu = 0.0;
 	else
-	  otree->trigweightExcl = 1.0;
-
-	otree->trigweightSingle = otree->trigweight;
-	if (otree->pt_1<ptElectronHighCut)
-	  otree->trigweightExcl = eff_mc_trig_mhigh*eff_mc_trig_elow;
-	if (otree->pt_2<ptMuonHighCut)
-	  otree->trigweightExcl = eff_mc_trig_ehigh*eff_mc_trig_mlow;
-	if (otree->pt_1<ptElectronHighCut&&otree->pt_2<ptMuonHighCut)
-	  otree->trigweightExcl = 0;
+	  otree->trigweightEMu = eff_emu_data/eff_emu_mc;
 
 	/*
-	if (!pass_single_offline&&pass_cross_offline) 
-	std::cout << " **************** etau_tau trigger ******************* " << std::endl;
+	if (otree->pt_1<ptElectronHighCut||otree->pt_2<ptElectronLowCut) {
 
-	std::cout << "pt_1 = " << otree->pt_1 << "   eta_1 = " << otree->eta_1
-		  << "   pt_2 = " << otree->pt_2 << "   eta_2 = " << otree->eta_2 << std::endl;
-	std::cout << "pass_single_offline = " << pass_single_offline 
-		  << "   pass_cross_offline = " << pass_cross_offline << std::endl;
-	std::cout << "trigweight_1 = " << otree->trigweight_1 << std::endl;
-	std::cout << "trigweight_2 = " << otree->trigweight_2
-		  << "   Up = " << otree->trigweight_2_Up
-		  << "   Down = " << otree->trigweight_2_Down << std::endl;
+	  std::cout << "event = " << otree->evt << std::endl;
+	  std::cout << "pt_1 = " << otree->pt_1 << "  pt_2 = " << otree->pt_2 << std::endl;
+	  std::cout << "trigweightEMu  =  " << otree->trigweightEMu << std::endl;
+	  std::cout << "trigweight(Old) = " << www << std::endl;
+	  std::cout << "eff_emu_data = " << eff_emu_data << std::endl;
+	  std::cout << "eff_emu_mc = " << eff_emu_mc << std::endl;
+
+	  float sf_trig_mhigh = 0;
+	  float sf_trig_mlow = 0;
+	  float sf_trig_ehigh = 0;
+	  float sf_trig_elow = 0;
+
+	  if (eff_data_trig_mhigh>1e-3&&eff_mc_trig_mhigh>1e-3)
+	    sf_trig_mhigh = eff_data_trig_mhigh/eff_mc_trig_mhigh;
+	  if (eff_data_trig_mlow>1e-3&&eff_mc_trig_mlow>1e-3)
+	    sf_trig_mlow = eff_data_trig_mlow/eff_mc_trig_mlow;
+
+	  if (eff_data_trig_ehigh>1e-3&&eff_mc_trig_ehigh>1e-3)
+	    sf_trig_ehigh = eff_data_trig_ehigh/eff_mc_trig_ehigh;
+	  if (eff_data_trig_elow>1e-3&&eff_mc_trig_elow>1e-3)
+	    sf_trig_elow = eff_data_trig_elow/eff_mc_trig_elow;
+	  
+	  std::cout << "SF(mu-high)*SF(e-low) = " << sf_trig_mhigh*sf_trig_elow << std::endl;
+	  std::cout << "SF(e-high)*SF(mu-low) = " << sf_trig_ehigh*sf_trig_mlow << std::endl;
+	  std::cout << std::endl;
+
+	}
+	*/
+	// dz filter
+
+	otree->trigweightEMu *= dzFilterEff_data/dzFilterEff_mc;
+
+	float eff_comb_data = 
+	  eff_data_trig_e + 
+	  eff_data_trig_m + 
+	  eff_emu_data*dzFilterEff_data - 
+	  eff_data_trig_e*eff_data_trig_m - 
+	  eff_data_trig_e*eff_data_trig_mlow*dzFilterEff_data -
+	  eff_data_trig_m*eff_data_trig_elow*dzFilterEff_data +
+	  eff_data_trig_e*eff_data_trig_m*dzFilterEff_data;
+	float eff_comb_mc =
+	  eff_mc_trig_e +
+          eff_mc_trig_m +
+          eff_emu_mc*dzFilterEff_mc -
+          eff_mc_trig_e*eff_mc_trig_m -
+          eff_mc_trig_e*eff_mc_trig_mlow*dzFilterEff_mc -
+          eff_mc_trig_m*eff_mc_trig_elow*dzFilterEff_mc +
+          eff_mc_trig_e*eff_mc_trig_m*dzFilterEff_mc;
+
+	if (eff_comb_mc<1e-3||eff_comb_data<1e-4)
+	  otree->trigweight = 0.0;
+	else
+	  otree->trigweight = eff_comb_data/eff_comb_mc;
+
+	/*
+	std::cout << "pt_1 : " << otree->pt_1 << "  eta_1 = " << otree->eta_1 << "  iso_1 = " << otree->iso_1 << std::endl; 
+	std::cout << "idiso_1 = " << otree->idisoweight_1 
+		  << "  idiso_kit_1 = " << isoweight_1_kit << std::endl;
+	std::cout << "trkeff_1 = " << otree->trkeffweight_1 
+		  << "  trkeff_kit_1 = " << trkeffweight_1_kit << std::endl;
+
+	std::cout << "pt_2 : " << otree->pt_2 << "  eta_2 = " << otree->eta_2 << "  iso_2 = " << otree->iso_2 << std::endl; 
+	std::cout << "idiso_2 = " << otree->idisoweight_2 
+		  << "  idiso_kit_2 = " << isoweight_2_kit << std::endl;
+	std::cout << "trkeff_2 = " << otree->trkeffweight_2 
+		  << "  trkeff_kit_2 = " << trkeffweight_2_kit << std::endl;	
 	
-	std::cout << "trigweght = " << otree->trigweight 
-		  << "   Up = " << trigweightUp 
-		  << "   Down = " << trigweightDown << std::endl;
+	std::cout << "eff_mc_trig_e   = " << eff_mc_trig_e << std::endl;
+	std::cout << "eff_mc_trig_m   = " << eff_mc_trig_m << std::endl;
+	std::cout << "eff_data_trig_e = " << eff_data_trig_e << std::endl;
+	std::cout << "eff_data_trig_m = " << eff_data_trig_m << std::endl;
+	std::cout << "eff_single_data = " << eff_single_data << std::endl;
+	std::cout << "eff_single_mc   = " << eff_single_mc << std::endl;
+	std::cout << "trigweight = " << otree->trigweightSingle << std::endl;
+	std::cout << "trigweight(e+mu) = " << otree->trigweightExcl << std::endl;
+
 	std::cout << std::endl;
 	*/
-
-	otree->trigweight = otree->trigweightSingle;
 	float eff_emu_weight = otree->idisoweight_1 * otree->trkeffweight_1 * otree->idisoweight_2 * otree->trkeffweight_2;
-	if (isEmbedded) eff_emu_weight *= otree->embweight;
 	otree->effweight = eff_emu_weight * otree->trigweight;
 	otree->effweightSingle = eff_emu_weight * otree->trigweightSingle;
-	otree->effweightExcl = eff_emu_weight * otree->trigweightExcl;
-	otree->weight = otree->effweight * otree->puweight * otree->mcweight; 
-	otree->weightSingle = otree->effweightSingle * otree->puweight * otree->mcweight; 
-	otree->weightExcl   = otree->effweightExcl * otree->puweight * otree->mcweight; 
+	otree->effweightEMu = eff_emu_weight * otree->trigweightEMu;
+	otree->weight = otree->effweight;
+	otree->weightSingle = otree->effweightSingle;
+	otree->weightEMu = otree->effweightEMu;
+      }
 
+      // embedded weight
+      otree->embweight = 1.0;
+      if (isEmbedded) {
+      	otree->embweight = getEmbeddedWeight(&analysisTree, w);
+	if (otree->embweight>10.0)
+	  cout << "warning : embedding weight = " << otree->embweight << endl;
+	otree->weight *= otree->embweight;
+	otree->weightSingle *= otree->embweight;
+	otree->weightEMu *= otree->embweight;
+      }
+
+      // PU weight
+      otree->puweight = 1.0;
+      if (ApplyPUweight) {
+        otree->puweight = float(PUofficial->get_PUweight(double(analysisTree.numtruepileupinteractions)));
+	otree->weight *= otree->puweight;
+	otree->weightSingle *= otree->puweight;
+	otree->weightEMu *= otree->puweight;
+      }
+
+      // generator weight
+      otree->mcweight = 1.0;
+      if(!isData || isEmbedded){
+        otree->mcweight = analysisTree.genweight;
+        otree->gen_noutgoing = analysisTree.genparticles_noutgoing;
+	if (isEmbedded&&otree->mcweight>1.0)
+	  otree->mcweight = 0.0;
+	otree->weight *= otree->mcweight;
+	otree->weightSingle *= otree->mcweight;
+	otree->weightEMu *= otree->mcweight;	
       }
       
       //Theory uncertainties for CP analysis      
@@ -1164,7 +1354,7 @@ int main(int argc, char * argv[]){
       otree->weight_CMS_PS_FSR_ggH_13TeVUp   = 1.;
       otree->weight_CMS_PS_FSR_ggH_13TeVDown = 1.;
 
-      if(isHiggs){
+      if(isHiggs || isMSSMsignal){
 	otree->weight_CMS_PS_ISR_ggH_13TeVUp   = analysisTree.gen_pythiaweights[6];
 	otree->weight_CMS_PS_ISR_ggH_13TeVDown = analysisTree.gen_pythiaweights[8];
 	otree->weight_CMS_PS_FSR_ggH_13TeVUp   = analysisTree.gen_pythiaweights[7];
@@ -1175,40 +1365,102 @@ int main(int argc, char * argv[]){
       otree->prefiringweight     = analysisTree.prefiringweight;
       otree->prefiringweightUp   = analysisTree.prefiringweightup;
       otree->prefiringweightDown = analysisTree.prefiringweightdown;
-
+      if (!isData && !isEmbedded) {
+	if (era<2018) {
+	  otree->weight *= otree->prefiringweight;
+	  otree->weightSingle *= otree->prefiringweight;
+	  otree->weightEMu *= otree->prefiringweight;
+	}
+      }
       // ************************
       // QCD background weights *
       // ************************
+      otree->qcdweight_deltaR = 1.0;
+
+      otree->qcdweight_deltaR_0jet_Par0_up = 1.0;
+      otree->qcdweight_deltaR_0jet_Par0_down = 1.0;
+      otree->qcdweight_deltaR_0jet_Par1_up = 1.0;
+      otree->qcdweight_deltaR_0jet_Par1_down = 1.0;
+      otree->qcdweight_deltaR_0jet_Par2_up = 1.0;
+      otree->qcdweight_deltaR_0jet_Par2_down = 1.0;
+
+      otree->qcdweight_deltaR_1jet_Par0_up = 1.0;
+      otree->qcdweight_deltaR_1jet_Par0_down = 1.0;
+      otree->qcdweight_deltaR_1jet_Par1_up = 1.0;
+      otree->qcdweight_deltaR_1jet_Par1_down = 1.0;
+      otree->qcdweight_deltaR_1jet_Par2_up = 1.0;
+      otree->qcdweight_deltaR_1jet_Par2_down = 1.0;
+
+      otree->qcdweight_deltaR_2jet_Par0_up = 1.0;
+      otree->qcdweight_deltaR_2jet_Par0_down = 1.0;
+      otree->qcdweight_deltaR_2jet_Par1_up = 1.0;
+      otree->qcdweight_deltaR_2jet_Par1_down = 1.0;
+      otree->qcdweight_deltaR_2jet_Par2_up = 1.0;
+      otree->qcdweight_deltaR_2jet_Par2_down = 1.0;
+
+      
+
       if(otree->njets==0){
 	otree->qcdweight_deltaR =OS_SS_njet0->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_up =  OS_SS_njet0_Par0_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_down =  OS_SS_njet0_Par0_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_up =  OS_SS_njet0_Par1_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_down =  OS_SS_njet0_Par1_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_up =  OS_SS_njet0_Par2_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_down =  OS_SS_njet0_Par2_DOWN->Eval(otree->dr_tt);
+	otree->qcdweight_deltaR_0jet_Par0_up =  OS_SS_njet0_Par0_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_0jet_Par0_down =  OS_SS_njet0_Par0_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_0jet_Par1_up =  OS_SS_njet0_Par1_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_0jet_Par1_down =  OS_SS_njet0_Par1_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_0jet_Par2_up =  OS_SS_njet0_Par2_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_0jet_Par2_down =  OS_SS_njet0_Par2_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	/*
+	std::cout << "qcdweight_deltaR_0jet_Par0_up   = " << otree->qcdweight_deltaR_0jet_Par0_up << std::endl;
+	std::cout << "qcdweight_deltaR_0jet_Par0_down = " << otree->qcdweight_deltaR_0jet_Par0_down << std::endl;
+	std::cout << "qcdweight_deltaR_0jet_Par1_up   = " << otree->qcdweight_deltaR_0jet_Par1_up << std::endl;
+	std::cout << "qcdweight_deltaR_0jet_Par1_down = " << otree->qcdweight_deltaR_0jet_Par1_down << std::endl;
+	std::cout << "qcdweight_deltaR_0jet_Par2_up   = " << otree->qcdweight_deltaR_0jet_Par2_up << std::endl;
+	std::cout << "qcdweight_deltaR_0jet_Par2_down = " << otree->qcdweight_deltaR_0jet_Par2_down << std::endl;
+	*/
+
       }
       else if(otree->njets ==1) {
 	otree->qcdweight_deltaR = OS_SS_njet1->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_up =  OS_SS_njet1_Par0_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_down =  OS_SS_njet1_Par0_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_up =  OS_SS_njet1_Par1_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_down =  OS_SS_njet1_Par1_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_up =  OS_SS_njet1_Par2_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_down =  OS_SS_njet1_Par2_DOWN->Eval(otree->dr_tt);
+	otree->qcdweight_deltaR_1jet_Par0_up =  OS_SS_njet1_Par0_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_1jet_Par0_down =  OS_SS_njet1_Par0_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_1jet_Par1_up =  OS_SS_njet1_Par1_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_1jet_Par1_down =  OS_SS_njet1_Par1_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_1jet_Par2_up =  OS_SS_njet1_Par2_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_1jet_Par2_down =  OS_SS_njet1_Par2_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	/*
+	std::cout << "qcdweight_deltaR_1jet_Par0_up   = " << otree->qcdweight_deltaR_1jet_Par0_up << std::endl;
+	std::cout << "qcdweight_deltaR_1jet_Par0_down = " << otree->qcdweight_deltaR_1jet_Par0_down << std::endl;
+	std::cout << "qcdweight_deltaR_1jet_Par1_up   = " << otree->qcdweight_deltaR_1jet_Par1_up << std::endl;
+	std::cout << "qcdweight_deltaR_1jet_Par1_down = " << otree->qcdweight_deltaR_1jet_Par1_down << std::endl;
+	std::cout << "qcdweight_deltaR_1jet_Par2_up   = " << otree->qcdweight_deltaR_1jet_Par2_up << std::endl;
+	std::cout << "qcdweight_deltaR_1jet_Par2_down = " << otree->qcdweight_deltaR_1jet_Par2_down << std::endl;
+	*/
       }
       else {
+
 	otree->qcdweight_deltaR = OS_SS_njetgt1->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_up =  OS_SS_njetgt1_Par0_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par0_down =  OS_SS_njetgt1_Par0_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_up =  OS_SS_njetgt1_Par1_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par1_down =  OS_SS_njetgt1_Par1_DOWN->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_up =  OS_SS_njetgt1_Par2_UP->Eval(otree->dr_tt);
-	otree->qcdweight_deltaR_Par2_down =  OS_SS_njetgt1_Par2_DOWN->Eval(otree->dr_tt);
-        
+	otree->qcdweight_deltaR_2jet_Par0_up =  OS_SS_njetgt1_Par0_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_2jet_Par0_down =  OS_SS_njetgt1_Par0_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_2jet_Par1_up =  OS_SS_njetgt1_Par1_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_2jet_Par1_down =  OS_SS_njetgt1_Par1_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_2jet_Par2_up =  OS_SS_njetgt1_Par2_UP->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+	otree->qcdweight_deltaR_2jet_Par2_down =  OS_SS_njetgt1_Par2_DOWN->Eval(otree->dr_tt)/otree->qcdweight_deltaR;
+        /*
+	std::cout << "qcdweight_deltaR_2jet_Par0_up   = " << otree->qcdweight_deltaR_2jet_Par0_up << std::endl;
+	std::cout << "qcdweight_deltaR_2jet_Par0_down = " << otree->qcdweight_deltaR_2jet_Par0_down << std::endl;
+	std::cout << "qcdweight_deltaR_2jet_Par1_up   = " << otree->qcdweight_deltaR_2jet_Par1_up << std::endl;
+	std::cout << "qcdweight_deltaR_2jet_Par1_down = " << otree->qcdweight_deltaR_2jet_Par1_down << std::endl;
+	std::cout << "qcdweight_deltaR_2jet_Par2_up   = " << otree->qcdweight_deltaR_2jet_Par2_up << std::endl;
+	std::cout << "qcdweight_deltaR_2jet_Par2_down = " << otree->qcdweight_deltaR_2jet_Par2_down << std::endl;
+	*/
       }
-      otree->qcdweight_nonclosure = hNonClosureCorrection->GetBinContent(hNonClosureCorrection->GetXaxis()->FindBin(otree->pt_2),hNonClosureCorrection->GetYaxis()->FindBin(otree->pt_1));
-      otree->qcdweight_isolationcorrection = hIsolationCorrection->GetBinContent(hIsolationCorrection->GetXaxis()->FindBin(otree->pt_2),hIsolationCorrection->GetYaxis()->FindBin(otree->pt_1));
+
+      float pt1 = otree->pt_1;
+      float pt2 = otree->pt_2;
+      if (pt1>149.) pt1 = 149.0;
+      if (pt2>149.) pt2 = 149.0;
+
+      otree->qcdweight_nonclosure = hNonClosureCorrection->GetBinContent(hNonClosureCorrection->GetXaxis()->FindBin(pt2),hNonClosureCorrection->GetYaxis()->FindBin(pt1));
+      otree->qcdweight_isolationcorrection = hIsolationCorrection->GetBinContent(hIsolationCorrection->GetXaxis()->FindBin(pt2),hIsolationCorrection->GetYaxis()->FindBin(pt1));
         
       otree->qcdweight=otree->qcdweight_deltaR*otree->qcdweight_nonclosure*otree->qcdweight_isolationcorrection;
 
@@ -1243,6 +1495,9 @@ int main(int argc, char * argv[]){
           zptmassweight = h_zptweight->GetBinContent(h_zptweight->GetXaxis()->FindBin(bosonMassX), h_zptweight->GetYaxis()->FindBin(bosonPtX));
           }	
           otree->zptweight = zptmassweight;
+	  otree->weight *= zptmassweight;
+	  otree->weightSingle *= zptmassweight;
+	  otree->weightEMu *= zptmassweight;
       }
       
       ////////////////////////////////////////////////////////////
@@ -1250,14 +1505,27 @@ int main(int argc, char * argv[]){
       ////////////////////////////////////////////////////////////
 
       otree->topptweight = 1.;
-      if(!isData || isEmbedded){
+      if(!isData && isTTbar){
         float a_topPtWeight = cfg.get<float>("a_topPtWeight");
         float b_topPtWeight = cfg.get<float>("b_topPtWeight");
         float c_topPtWeight = cfg.get<float>("c_topPtWeight");
         float max_pt_topPtWeight = cfg.get<float>("max_pt_topPtWeight");
         otree->topptweight = genTools::topPtWeight_Run2(analysisTree, a_topPtWeight, b_topPtWeight, c_topPtWeight, max_pt_topPtWeight);
         // otree->topptweight = genTools::topPtWeight(analysisTree, 1); // 1 is for Run1 - use this reweighting as recommended by HTT 17
+	otree->weight *= otree->topptweight;
+	otree->weightSingle *= otree->topptweight;
+	otree->weightEMu *= otree->topptweight;
       }
+
+      // ************************
+      // Data has weight 1.0
+      // ************************
+      if (!isEmbedded && isData) {
+	otree->weight = 1.0;
+	otree->weightSingle = 1.0;
+	otree->weightEMu = 1.0;
+      }
+
 
       ////////////////////////////////////////////////////////////
       // MET and Recoil Corrections !  
@@ -1277,6 +1545,41 @@ int main(int argc, char * argv[]){
       otree->puppimetcov01 = analysisTree.puppimet_sigxy;
       otree->puppimetcov10 = analysisTree.puppimet_sigyx;
       otree->puppimetcov11 = analysisTree.puppimet_sigyy;
+
+      otree->puppimet_ex_UnclusteredEnUp = analysisTree.puppimet_ex_UnclusteredEnUp;
+      otree->puppimet_ex_UnclusteredEnDown = analysisTree.puppimet_ex_UnclusteredEnDown;
+
+      otree->puppimet_ey_UnclusteredEnUp = analysisTree.puppimet_ey_UnclusteredEnUp;
+      otree->puppimet_ey_UnclusteredEnDown = analysisTree.puppimet_ey_UnclusteredEnDown;
+
+      float puppimetUp = sqrt(analysisTree.puppimet_ex_UnclusteredEnUp*analysisTree.puppimet_ex_UnclusteredEnUp+
+			      analysisTree.puppimet_ey_UnclusteredEnUp*analysisTree.puppimet_ey_UnclusteredEnUp);
+      float puppimetphiUp = atan2(analysisTree.puppimet_ey_UnclusteredEnUp,
+				  analysisTree.puppimet_ex_UnclusteredEnUp); 
+
+      float puppimetDown = sqrt(analysisTree.puppimet_ex_UnclusteredEnDown*analysisTree.puppimet_ex_UnclusteredEnDown+
+			      analysisTree.puppimet_ey_UnclusteredEnDown*analysisTree.puppimet_ey_UnclusteredEnDown);
+      float puppimetphiDown = atan2(analysisTree.puppimet_ey_UnclusteredEnDown,
+				  analysisTree.puppimet_ex_UnclusteredEnDown); 
+
+      /*     
+      std::cout << std::endl;
+      std::cout << " Central : (" << analysisTree.puppimet_ex 
+		<< "," << analysisTree.puppimet_ey << ")" << std::endl;
+
+      std::cout << "Up : (" << otree->puppimet_ex_UnclusteredEnUp 
+		<< "," << otree->puppimet_ey_UnclusteredEnUp << ")" << std::endl;
+
+      std::cout << "Down : (" << otree->puppimet_ex_UnclusteredEnDown 
+		<< "," << otree->puppimet_ey_UnclusteredEnDown << ")" << std::endl;
+
+      std::cout << "PuppiMET central :  " << otree->puppimet 
+      		<< "    " << analysisTree.puppimet_phi << std::endl;
+      std::cout << "PuppiMET up      :  " << puppimetUp 
+      		<< "    " << puppimetphiUp << std::endl;
+      std::cout << "PuppiMET down    :  " << puppimetDown
+      		<< "    " << puppimetphiDown << std::endl;
+      */
 
       otree->met_uncorr = otree->puppimet;
       otree->metphi_uncorr = otree->puppimetphi;
@@ -1310,16 +1613,6 @@ int main(int argc, char * argv[]){
 	otree->metphi = otree->metphi_rcmr;
       }
       
-      // if (!isData) {
-      // 	if(otree->gen_match_2 == 5 && tauLV.E() <= 400 && tauLV.E() >= 20){
-      // 	  if (otree->tau_decay_mode_2 == 0) tauLV *= (1-0.03);
-      // 	  else if (otree->tau_decay_mode_2 < 5) tauLV *= (1-0.02);
-      // 	  else if (otree->tau_decay_mode_2 == 10)tauLV *= (1-0.01);
-      // 	  otree->pt_2 = tauLV.Pt();
-      // 	  otree->m_2 = tauLV.M();
-      // 	}
-      // }
-      
       ////////////////////////////////////////////////////////////
       // Filling variables (with corrected MET and electron pt)
       ////////////////////////////////////////////////////////////
@@ -1336,29 +1629,16 @@ int main(int argc, char * argv[]){
 
       TLorentzVector metLV; metLV.SetXYZT(otree->met*TMath::Cos(otree->metphi),
 					  otree->met*TMath::Sin(otree->metphi),
-					  otree->met,
+					  0.0,
 					  otree->met);
 
       TLorentzVector puppimetLV; puppimetLV.SetXYZT(otree->puppimet*TMath::Cos(otree->puppimetphi),
 						    otree->puppimet*TMath::Sin(otree->puppimetphi),
-						    otree->puppimet,
+						    0.0,
 						    otree->puppimet);
 
       TLorentzVector dileptonLV = muonLV + electronLV;
       otree->m_vis = dileptonLV.M();
-      otree->pt_tt = (dileptonLV+metLV).Pt();   
-      otree->pt_tt_puppi = (dileptonLV+puppimetLV).Pt();
-    
-      // mt TOT
-      float mtTOT = 2*(otree->pt_1)*metLV.Pt()*(1-cos(DeltaPhi(electronLV,metLV)));
-      mtTOT += 2*(otree->pt_2)*metLV.Pt()*(1-cos(DeltaPhi(muonLV,metLV))); 
-      mtTOT += 2*(otree->pt_1)*(otree->pt_2)*(1-cos(DeltaPhi(electronLV,muonLV))); 
-      otree->mt_tot = TMath::Sqrt(mtTOT);
-
-      mtTOT = 2*(otree->pt_1)*puppimetLV.Pt()*(1-cos(DeltaPhi(electronLV,puppimetLV)));
-      mtTOT += 2*(otree->pt_2)*puppimetLV.Pt()*(1-cos(DeltaPhi(muonLV,puppimetLV))); 
-      mtTOT += 2*(otree->pt_1)*(otree->pt_2)*(1-cos(DeltaPhi(electronLV,muonLV))); 
-      otree->mt_tot_puppi = TMath::Sqrt(mtTOT);
     
       // opposite charge
       otree->os = (otree->q_1 * otree->q_2) < 0.;
@@ -1367,11 +1647,6 @@ int main(int argc, char * argv[]){
       //      if(ch=="mt") otree->dilepton_veto = dilepton_veto_mt(&cfg, &analysisTree);
       //      if(ch=="et") otree->dilepton_veto = dilepton_veto_et(&cfg, &analysisTree, era, isEmbedded);
     
-      //extra lepton veto
-      TString chE("et");
-      TString chMu("mt");
-      otree->extraelec_veto = extra_electron_veto(electronIndex, chE, &cfg, &analysisTree, era, isEmbedded);
-      otree->extramuon_veto = extra_muon_veto(muonIndex, chMu, &cfg, &analysisTree, isData);
     
       otree->mt_1 = mT(electronLV, metLV);
       otree->mt_2 = mT(muonLV, metLV);
@@ -1380,48 +1655,18 @@ int main(int argc, char * argv[]){
     
       // bisector of lepton and tau transverse momenta
     
-      float electronUnitX = electronLV.Px() / electronLV.Pt();
-      float electronUnitY = electronLV.Py() / electronLV.Pt();
-    
-      float muonUnitX = muonLV.Px() / muonLV.Pt();
-      float muonUnitY = muonLV.Py() / muonLV.Pt();
-    
-      float zetaX = electronUnitX + muonUnitX;
-      float zetaY = electronUnitY + muonUnitY;
-    
-      float normZeta = TMath::Sqrt(zetaX*zetaX+zetaY*zetaY);
-    
-      zetaX = zetaX / normZeta;
-      zetaY = zetaY / normZeta;
-    
-      float vectorVisX = electronLV.Px() + muonLV.Px();
-      float vectorVisY = electronLV.Py() + muonLV.Py();
-    
-      otree->pzetavis  = vectorVisX*zetaX + vectorVisY*zetaY;
-      otree->pzetamiss = otree->met*TMath::Cos(otree->metphi)*zetaX + otree->met*TMath::Sin(otree->metphi)*zetaY;
-      otree->puppipzetamiss = otree->puppimet*TMath::Cos(otree->puppimetphi)*zetaX + otree->puppimet*TMath::Sin(otree->puppimetphi)*zetaY;
-      otree->pzeta = otree->pzetamiss - 0.85*otree->pzetavis;
-      otree->puppipzeta = otree->puppipzetamiss - 0.85*otree->pzetavis;
+      otree->pzetavis  = calc::pzetavis(electronLV,muonLV);
 
-    
-      bool isSRevent = true; //boolean used to compute SVFit variables only on SR events, it is set to true when running Synchronization to run SVFit on all events
-      //      if(!Synch){
-      //	isSRevent = (otree->dilepton_veto<0.5 &&  otree->extramuon_veto<0.5 && otree->extraelec_veto<0.5 && otree->pt_1>19 && otree->pt_2>19 && otree->byVVVLooseDeepTau2017v2p1VSjet_2>0.5);
-      //	if(usePuppiMET) isSRevent = isSRevent && otree->puppimt_1<60;
-      //	else isSRevent = isSRevent && otree->mt_1<60;
-      //	if(ch == "mt") isSRevent = isSRevent && (otree->trg_singlemuon>0.5 || otree->trg_mutaucross>0.5);
-      //	if(ch == "et") isSRevent = isSRevent && (otree->trg_singleelectron>0.5 || otree->trg_etaucross>0.5);
-      //      }
+      TLorentzVector metxLV = metLV;
+      if (usePuppiMET) 
+	metxLV = puppimetLV;
 
-      /*
-	if (!isSRevent) { 
-	cout << "                                        " << endl;
-	cout << "========================================" << endl;
-	cout << "        Event is not selected           " << endl;
-	cout << "========================================" << endl;
-	cout << "                                        " << endl;
-	}
-      */
+      otree->pt_tt = (dileptonLV+metxLV).Pt();   
+      otree->mt_tot = calc::mTtot(electronLV,muonLV,metxLV);
+      otree->pzetamiss = calc::pzetamiss(electronLV,muonLV,metxLV);
+      otree->pzeta = calc::pzeta(electronLV,muonLV,metxLV);
+      
+      //boolean used to compute SVFit variables only on SR events, it is set to true when running Synchronization to run SVFit on all events
 
       // initialize svfit and fastMTT variables
       otree->m_sv   = -10;
@@ -1435,267 +1680,16 @@ int main(int argc, char * argv[]){
       otree->pt_fast = -10;
       otree->phi_fast = -10;
       otree->eta_fast = -10;
+      if ( (ApplySVFit||ApplyFastMTT) && isSRevent) svfit_variables("em", &analysisTree, otree, &cfg, inputFile_visPtResolution);
 
-
-      // ***********************************
-      // ** IPSignificance calibration ->
-      // ***********************************
-      otree->v_tracks = 0;
-      std::vector<float> PV_covariance; PV_covariance.clear();
-      std::vector<float> PVBS_covariance; PVBS_covariance.clear();
-      // by default store non-refitted PV with BS constraint if refitted one is not found
-
-      float vtx_x = analysisTree.primvertexwithbs_x; 
-      float vtx_y = analysisTree.primvertexwithbs_y;
-      float vtx_z = analysisTree.primvertexwithbs_z;
-
-      float vtx_bs_x = analysisTree.primvertexwithbs_x; 
-      float vtx_bs_y = analysisTree.primvertexwithbs_y;
-      float vtx_bs_z = analysisTree.primvertexwithbs_z;
-
-      for (int j = 0; j<6 ; ++j) {
-	PV_covariance.push_back(analysisTree.primvertexwithbs_cov[j]);
-	PVBS_covariance.push_back(analysisTree.primvertexwithbs_cov[j]);
-      }
-
-      for(unsigned int i = 0; i < analysisTree.refitvertexwithbs_count; i++)
-        {
-	  bool muon_match = muonIndex == analysisTree.refitvertexwithbs_muIndex[i][0] || muonIndex == analysisTree.refitvertexwithbs_muIndex[i][1];
-	  bool electron_match = electronIndex == analysisTree.refitvertexwithbs_eleIndex[i][0] || electronIndex == analysisTree.refitvertexwithbs_eleIndex[i][1];
-	  bool lep_match = muon_match && electron_match;
-
-          if( lep_match )
-            {
-              otree->v_tracks = analysisTree.refitvertexwithbs_ntracks[i];
-	      vtx_x = analysisTree.refitvertexwithbs_x[i];
-	      vtx_y = analysisTree.refitvertexwithbs_y[i];
-	      vtx_z = analysisTree.refitvertexwithbs_z[i];
-	      for (int j=0; j<6; ++j) 
-		PV_covariance[j] = analysisTree.refitvertexwithbs_cov[i][j];
-            }
-        }
-
-      otree->pvx = vtx_x;
-      otree->pvy = vtx_y;
-      otree->pvz = vtx_z;
-      TVector3 vertex_bs(vtx_bs_x,vtx_bs_y,vtx_bs_z);
-      TVector3 vertex(vtx_x,vtx_y,vtx_z);
+      // +++++++++++++++++++++++++++++++++++++++++++++++++
+      // ++++++++ Systematic uncertainties +++++++++++++++
+      // +++++++++++++++++++++++++++++++++++++++++++++++++
       
-      TLorentzVector muonIP = ipVec_Lepton_emu(&analysisTree,muonIndex,false,vertex,era,isEmbedded);
-      TLorentzVector muonIP_pvbs = ipVec_Lepton_emu(&analysisTree,muonIndex,false,vertex_bs,era,isEmbedded);
-
-      TLorentzVector electronIP = ipVec_Lepton_emu(&analysisTree,electronIndex,true,vertex,era,isEmbedded);
-      TLorentzVector electronIP_pvbs = ipVec_Lepton_emu(&analysisTree,electronIndex,true,vertex_bs,era,isEmbedded);
-      
-      otree->ipx_uncorr_1 = electronIP.X();
-      otree->ipy_uncorr_1 = electronIP.Y();
-      otree->ipz_uncorr_1 = electronIP.Z();
-
-      otree->ipx_bs_uncorr_1 = electronIP_pvbs.X();
-      otree->ipy_bs_uncorr_1 = electronIP_pvbs.Y();
-      otree->ipz_bs_uncorr_1 = electronIP_pvbs.Z();
-
-      otree->ipx_uncorr_2 = muonIP.X();
-      otree->ipy_uncorr_2 = muonIP.Y();
-      otree->ipz_uncorr_2 = muonIP.Z();
-
-      otree->ipx_bs_uncorr_2 = muonIP_pvbs.X();
-      otree->ipy_bs_uncorr_2 = muonIP_pvbs.Y();
-      otree->ipz_bs_uncorr_2 = muonIP_pvbs.Z();
-
-      otree->gen_ipx_1 = -9999;
-      otree->gen_ipy_1 = -9999;
-      otree->gen_ipz_1 = -9999;
-
-      otree->gen_ipx_2 = -9999;
-      otree->gen_ipy_2 = -9999;
-      otree->gen_ipz_2 = -9999;
-
-      otree->ipx_1 = otree->ipx_uncorr_1;
-      otree->ipy_1 = otree->ipy_uncorr_1;
-      otree->ipz_1 = otree->ipz_uncorr_1;
-      
-      otree->ipx_bs_1 = otree->ipx_bs_uncorr_1;
-      otree->ipy_bs_1 = otree->ipy_bs_uncorr_1;
-      otree->ipz_bs_1 = otree->ipz_bs_uncorr_1;
-      
-      otree->ipx_2 = otree->ipx_uncorr_2;
-      otree->ipy_2 = otree->ipy_uncorr_2;
-      otree->ipz_2 = otree->ipz_uncorr_2;
-      
-      otree->ipx_bs_2 = otree->ipx_bs_uncorr_2;
-      otree->ipy_bs_2 = otree->ipy_bs_uncorr_2;
-      otree->ipz_bs_2 = otree->ipz_bs_uncorr_2;
-
-      if (!isData || isEmbedded) {
-
-	TVector3 genVertex(otree->GenVertexX,
-			   otree->GenVertexY,
-			   otree->GenVertexZ);
-
-	TVector3 ipGenMuon = genParticleIP(&analysisTree,genVertex,otree->gen_match_2,otree->eta_2,otree->phi_2);
-	TVector3 ipGenElec = genParticleIP(&analysisTree,genVertex,otree->gen_match_1,otree->eta_1,otree->phi_1);
-      
-	otree->gen_ipx_1 = ipGenElec.X();
-	otree->gen_ipy_1 = ipGenElec.Y();
-	otree->gen_ipz_1 = ipGenElec.Z();
-
-	otree->gen_ipx_2 = ipGenMuon.X();
-	otree->gen_ipy_2 = ipGenMuon.Y();
-	otree->gen_ipz_2 = ipGenMuon.Z();
-	
-	if (ApplyIpCorrection) {
-
-	  TVector3 ipMuon_uncorr = muonIP.Vect();
-	  TVector3 ipMuon_uncorr_pvbs = muonIP_pvbs.Vect(); 
-	  TVector3 ipElec_uncorr = electronIP.Vect();
-	  TVector3 ipElec_uncorr_pvbs = electronIP_pvbs.Vect(); 
-	
-	  TVector3 ipMuon      = CorrectorIpMuon->correctIp(ipMuon_uncorr,ipGenMuon,otree->eta_2);
-	  TVector3 ipMuon_pvbs = CorrectorIpMuonBS->correctIp(ipMuon_uncorr_pvbs,ipGenMuon,otree->eta_2);
-
-	  TVector3 ipElec      = CorrectorIpElec->correctIp(ipElec_uncorr,ipGenElec,otree->eta_1);
-	  TVector3 ipElec_pvbs = CorrectorIpElecBS->correctIp(ipElec_uncorr_pvbs,ipGenElec,otree->eta_1);
-
-	  otree->ipx_1 = ipElec.X();
-	  otree->ipy_1 = ipElec.Y();
-	  otree->ipz_1 = ipElec.Z();
-
-	  otree->ipx_bs_1 = ipElec_pvbs.X();
-	  otree->ipy_bs_1 = ipElec_pvbs.Y();
-	  otree->ipz_bs_1 = ipElec_pvbs.Z();
-	  
-	  otree->ipx_2 = ipMuon.X();
-	  otree->ipy_2 = ipMuon.Y();
-	  otree->ipz_2 = ipMuon.Z();
-	  
-	  otree->ipx_bs_2 = ipMuon_pvbs.X();
-	  otree->ipy_bs_2 = ipMuon_pvbs.Y();
-	  otree->ipz_bs_2 = ipMuon_pvbs.Z();
-	}
-      }
-      
-      ImpactParameter IP;
-      
-      // *****
-      // RefitV + BS
-      // *****
-
-      ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov1;
-      TVector3 IP1;
-      IP_significance_helix_lep(&analysisTree,electronIndex, "et", vertex,PV_covariance,ipCov1,IP1);
-
-      ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov2;
-      TVector3 IP2;
-      IP_significance_helix_lep(&analysisTree, muonIndex, "mt", vertex,PV_covariance,ipCov2,IP2);
-
-      // ******
-      // PV+BS
-      // ******
-
-      ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov1_bs;
-      TVector3 IP1_bs;
-      IP_significance_helix_lep(&analysisTree,electronIndex,"et",vertex_bs,PVBS_covariance,ipCov1_bs,IP1_bs);
-
-      ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov2_bs;
-      TVector3 IP2_bs;
-      IP_significance_helix_lep(&analysisTree,muonIndex,"mt",vertex_bs,PVBS_covariance,ipCov2_bs,IP2_bs);
-
-      /*
-      cout << "ipsig1 = " << ipsig1 << " ipsig2 = " << ipsig2 << endl;
-      cout << "IP1  : x = " << IP1.x() 
-	   << "  y = " << IP1.y() 
-	   << "  z = " << IP1.z() << std::endl;
-      cout << "       x = " << otree->ipx_uncorr_1 
-	   << "  y = " << otree->ipy_uncorr_1 
-	   << "  z = " << otree->ipz_uncorr_1 << std::endl;
-
-      cout << "IP2  : x = " << IP2.x() 
-	   << "  y = " << IP2.y() 
-	   << "  z = " << IP2.z() << std::endl;
-      cout << "       x = " << otree->ipx_uncorr_2 
-	   << "  y = " << otree->ipy_uncorr_2 
-	   << "  z = " << otree->ipz_uncorr_2 << std::endl;
-      */
-
-      TVector3 Ip1(otree->ipx_uncorr_1,otree->ipy_uncorr_1,otree->ipz_uncorr_1);
-      otree->IP_signif_RefitV_with_BS_uncorr_1 = IP.CalculateIPSignificanceHelical(Ip1, ipCov1);
-      otree->IP_signif_RefitV_with_BS_1 = otree->IP_signif_RefitV_with_BS_uncorr_1;
-
-      Ip1.SetXYZ(otree->ipx_bs_uncorr_1,otree->ipy_bs_uncorr_1,otree->ipz_bs_uncorr_1);
-      otree->IP_signif_PV_with_BS_uncorr_1 = IP.CalculateIPSignificanceHelical(Ip1, ipCov1_bs);
-      otree->IP_signif_PV_with_BS_1 = otree->IP_signif_PV_with_BS_uncorr_1;
-
-      otree->ip_covxx_1 = ipCov1(0,0);
-      otree->ip_covxy_1 = ipCov1(0,1);
-      otree->ip_covxz_1 = ipCov1(0,2);
-      otree->ip_covyy_1 = ipCov1(1,1);
-      otree->ip_covyz_1 = ipCov1(1,2);
-      otree->ip_covzz_1 = ipCov1(2,2);
-
-      TVector3 Ip2(otree->ipx_uncorr_2,otree->ipy_uncorr_2,otree->ipz_uncorr_2);
-      otree->IP_signif_RefitV_with_BS_uncorr_2 = IP.CalculateIPSignificanceHelical(Ip2, ipCov2);
-      otree->IP_signif_RefitV_with_BS_2 = otree->IP_signif_RefitV_with_BS_uncorr_2;
-
-      Ip2.SetXYZ(otree->ipx_bs_uncorr_2,otree->ipy_bs_uncorr_2,otree->ipz_bs_uncorr_2);
-      otree->IP_signif_PV_with_BS_uncorr_2 = IP.CalculateIPSignificanceHelical(Ip2, ipCov2_bs);
-      otree->IP_signif_PV_with_BS_2 = otree->IP_signif_PV_with_BS_uncorr_2;
-
-      otree->ip_covxx_2 = ipCov2(0,0);
-      otree->ip_covxy_2 = ipCov2(0,1);
-      otree->ip_covxz_2 = ipCov2(0,2);
-      otree->ip_covyy_2 = ipCov2(1,1);
-      otree->ip_covyz_2 = ipCov2(1,2);
-      otree->ip_covzz_2 = ipCov2(2,2);
-
-      // ***********************
-      // Corrected values 
-      // ***********************
-
-      if ((!isData || isEmbedded) && ApplyIpCorrection) {
-	ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov1_corr;
-	ROOT::Math::SMatrix<float,3,3, ROOT::Math::MatRepStd< float, 3, 3 >> ipCov2_corr;
-
-	ipCov1_corr =ipCov1;
-	Ip1.SetXYZ(otree->ipx_1,otree->ipy_1,otree->ipz_1);
-	ipCov1_corr = CorrectorIpElec->correctIpCov(ipCov1,otree->eta_1);      
-	otree->IP_signif_RefitV_with_BS_1 = IP.CalculateIPSignificanceHelical(Ip1, ipCov1_corr);
-
-	Ip1.SetXYZ(otree->ipx_bs_1,otree->ipy_bs_1,otree->ipz_bs_1);
-	ipCov1_corr = ipCov1_bs;
-	ipCov1_corr = CorrectorIpElecBS->correctIpCov(ipCov1_bs,otree->eta_1);      
-	otree->IP_signif_PV_with_BS_1 = IP.CalculateIPSignificanceHelical(Ip1, ipCov1_corr);
-
-	Ip2.SetXYZ(otree->ipx_2,otree->ipy_2,otree->ipz_2);
-	ipCov2_corr = ipCov2;
-	ipCov2_corr = CorrectorIpMuon->correctIpCov(ipCov2,otree->eta_2);      
-	otree->IP_signif_RefitV_with_BS_2 = IP.CalculateIPSignificanceHelical(Ip2, ipCov2_corr);      
-
-	Ip2.SetXYZ(otree->ipx_bs_2,otree->ipy_bs_2,otree->ipz_bs_2);
-	ipCov2_corr = ipCov2_bs;
-	ipCov2_corr = CorrectorIpMuonBS->correctIpCov(ipCov2_bs,otree->eta_2);      
-	otree->IP_signif_PV_with_BS_2 = IP.CalculateIPSignificanceHelical(Ip2, ipCov2_corr);      
-      }
-
-      /*
-      std::cout << "IPSig(1) = " << otree->IP_signif_RefitV_with_BS_uncorr_1
-		<< "  :  " << otree->IP_signif_RefitV_with_BS_1 
-		<< "  -> " << otree->IP_signif_PV_with_BS_1 << std::endl;
-
-      std::cout << "IPSig(2) = " << otree->IP_signif_RefitV_with_BS_uncorr_2
-		<< "  :  " << otree->IP_signif_RefitV_with_BS_2 
-		<< "  -> " << otree->IP_signif_PV_with_BS_2 << std::endl;
-      std::cout << std::endl;
-      */
-
-      otree->ip_sig_1 = otree->IP_signif_RefitV_with_BS_1;
-      otree->ip_sig_2 = otree->IP_signif_RefitV_with_BS_2;
-        
       // evaluate systematics for MC 
       if( !isData && !isEmbedded && ApplySystShift){
-	if (!isDY && !isWJets && !isHiggs) {
 	  btagSys->Eval();
-	}
+	  mistagSys->Eval();
 	for(unsigned int i = 0; i < jetEnergyScaleSys.size(); i++) {
 	  //	  cout << endl;
 	  //	  cout << "+++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
@@ -1762,6 +1756,11 @@ int main(int argc, char * argv[]){
   if (btagSys != 0) {
     btagSys->Write("",TObject::kOverwrite);
     delete btagSys;
+  }
+
+  if (mistagSys != 0) {
+    mistagSys->Write("",TObject::kOverwrite);
+    delete mistagSys;
   }
 
   if(jetEnergyScaleSys.size() > 0){

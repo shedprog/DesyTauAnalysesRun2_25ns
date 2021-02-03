@@ -3,9 +3,10 @@ dir=$1
 
 rm datasets${dir}
 #sources="/nfs/dust/cms/user/rasp/storage/76x_JECv2_MVAMET0p6/ /nfs/dust/cms/group/susy-desy/Run2/Stau/MC/25ns/76x_JECv2_MVAMET0p6/"
-sources="/nfs/dust/cms/user/rasp/storage/76x_JECv2_MVAMET0p6/"
+#sources="/nfs/dust/cms/user/rasp/storage/76x_JECv2_MVAMET0p6/"
 
-source2=/nfs/dust/cms/user/rasp/storage/76x_JECv2_MVAMET0p6_DatawFilters/
+#source2=/nfs/dust/cms/user/rasp/storage/76x_JECv2_MVAMET0p6_DatawFilters/
+sources="/pnfs/desy.de/cms/tier2/store/user/myshched/DESYsoft_stauMC/"
 
 alias ls='ls'
 
@@ -27,29 +28,29 @@ done
 done
 
 
-ls $source2/SingleMuon*Run2015D*/*.root > ${dir}/SingleMuon
-ls $source2/SingleEl*Run2015D*/*.root > ${dir}/SingleElectron
-ls $source2/MuonEG*Run2015D*/*.root > ${dir}/MuonEG
-#ls $source/METw*/*.root > ${dir}/MET
-#echo MET > MET
-echo SingleMuon  > SingleMuon
-echo SingleElectron > SingleElectron
-echo MuonEG > MuonEG
-
-rm GC*
-rm ${dir}/GC*
-
-rm *Glu*
-rm $dir/*Glu*
-
-rm AToZh*
-rm $dir/AToZh*
-
-rm Charged*
-rm $dir/Charged*
-
-
-sed -i '/AToZh/d' datasets$dir
-sed -i '/Charged/d' datasets$dir
-sed -i '/Glu/d' datasets$dir
-sed -i '/GC/d' datasets$dir
+#ls $source2/SingleMuon*Run2015D*/*.root > ${dir}/SingleMuon
+#ls $source2/SingleEl*Run2015D*/*.root > ${dir}/SingleElectron
+#ls $source2/MuonEG*Run2015D*/*.root > ${dir}/MuonEG
+##ls $source/METw*/*.root > ${dir}/MET
+##echo MET > MET
+#echo SingleMuon  > SingleMuon
+#echo SingleElectron > SingleElectron
+#echo MuonEG > MuonEG
+#
+#rm GC*
+#rm ${dir}/GC*
+#
+#rm *Glu*
+#rm $dir/*Glu*
+#
+#rm AToZh*
+#rm $dir/AToZh*
+#
+#rm Charged*
+#rm $dir/Charged*
+#
+#
+#sed -i '/AToZh/d' datasets$dir
+#sed -i '/Charged/d' datasets$dir
+#sed -i '/Glu/d' datasets$dir
+#sed -i '/GC/d' datasets$dir

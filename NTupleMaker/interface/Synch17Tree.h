@@ -8,7 +8,6 @@
 
 #ifndef Synch17Tree_h
 #define Synch17Tree_h
-
 #include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
@@ -308,6 +307,12 @@ public :
   Float_t         trigweight_antiiso_2;
   Float_t         tauvsjetweightMedium_2;
 
+      Float_t mcta;
+//      Float_t Mt2as;
+      Float_t dPhiLepMET;
+      Float_t dPhiTauMET;
+
+
   /////////////////////////////////////////////////////////////// NEW NEW
   Float_t	 efficiency_byVVLooseIsolationMVArun2017v2DBoldDMwLT2017_1;
 //  Float_t	 efficiency_byLooseIsolationMVArun2017v2DBoldDMwLT2017_1;
@@ -341,18 +346,24 @@ public :
   Float_t	 correction_againstMuonLoose3_2;
   Float_t	 correction_againstMuonTight3_2;
   ////////////////////////////////////////////////////////////
+
+
+
   //Trig and weights
   Float_t         weight;
   Float_t         weightSingle;
   Float_t         weightExcl;
+  Float_t         weightEMu;
   Float_t         mcweight;
   Float_t         puweight;
   Float_t         effweight;
   Float_t         effweightSingle;
   Float_t         effweightExcl;
+  Float_t         effweightEMu;
   Float_t         trigweight;
   Float_t         trigweightSingle;
   Float_t         trigweightExcl;
+  Float_t         trigweightEMu;
   Float_t         embweight;
   Float_t         prefiringweight;
   Float_t         prefiringweightUp;
@@ -420,16 +431,27 @@ public :
   Float_t weight_CMS_PS_FSR_ggH_13TeVDown;
 
   Float_t qcdweight_deltaR;
-  Float_t qcdweight_deltaR_Par0_up;
-  Float_t qcdweight_deltaR_Par0_down;
-  Float_t qcdweight_deltaR_Par1_up;
-  Float_t qcdweight_deltaR_Par1_down;
-  Float_t qcdweight_deltaR_Par2_up;
-  Float_t qcdweight_deltaR_Par2_down;
+  Float_t qcdweight_deltaR_0jet_Par0_up;
+  Float_t qcdweight_deltaR_0jet_Par0_down;
+  Float_t qcdweight_deltaR_0jet_Par1_up;
+  Float_t qcdweight_deltaR_0jet_Par1_down;
+  Float_t qcdweight_deltaR_0jet_Par2_up;
+  Float_t qcdweight_deltaR_0jet_Par2_down;
+  Float_t qcdweight_deltaR_1jet_Par0_up;
+  Float_t qcdweight_deltaR_1jet_Par0_down;
+  Float_t qcdweight_deltaR_1jet_Par1_up;
+  Float_t qcdweight_deltaR_1jet_Par1_down;
+  Float_t qcdweight_deltaR_1jet_Par2_up;
+  Float_t qcdweight_deltaR_1jet_Par2_down;
+  Float_t qcdweight_deltaR_2jet_Par0_up;
+  Float_t qcdweight_deltaR_2jet_Par0_down;
+  Float_t qcdweight_deltaR_2jet_Par1_up;
+  Float_t qcdweight_deltaR_2jet_Par1_down;
+  Float_t qcdweight_deltaR_2jet_Par2_up;
+  Float_t qcdweight_deltaR_2jet_Par2_down;
   Float_t qcdweight_nonclosure;
   Float_t qcdweight_isolationcorrection;
   Float_t qcdweight;
-
 
   Float_t         topptweight;
   Double_t 	  zptweight;
@@ -487,8 +509,6 @@ public :
   Float_t         puppimetcov01;
   Float_t         puppimetcov10;
   Float_t         puppimetcov11;
-  Float_t         puppipzetamiss;
-  Float_t         puppipzeta;
 
   Float_t         puppimet_ex_UnclusteredEnUp;
   Float_t         puppimet_ex_UnclusteredEnDown;
@@ -521,9 +541,6 @@ public :
   Float_t         met_sv;
   Float_t         mt_sv;
   
-  Float_t         pt_tt_puppi;
-  Float_t         mt_tot_puppi;
-
   Float_t         m_fast;
   Float_t         pt_fast;
   Float_t         eta_fast;
@@ -1037,19 +1054,27 @@ public :
   TBranch	 *b_trigweight_t_lt;
   TBranch	 *b_trigweight_antiiso_2;
   TBranch	 *b_tauvsjetweightMedium_2;
+  TBranch        *b_mcta;
+//  TBranch        *b_Mt2as;
+  TBranch        *b_dPhiLepMET;
+  TBranch        *b_dPhiTauMET;
+
 
   //Trig and weights
   TBranch	 *b_weight;
   TBranch	 *b_weightSingle;
   TBranch	 *b_weightExcl;
+  TBranch        *b_weightEMu;
   TBranch	 *b_mcweight;
   TBranch	 *b_puweight;
   TBranch	 *b_effweight;
   TBranch	 *b_effweightSingle;
   TBranch	 *b_effweightExcl;
+  TBranch	 *b_effweightEMu;
   TBranch        *b_trigweight;
   TBranch        *b_trigweightSingle;
   TBranch        *b_trigweightExcl;
+  TBranch        *b_trigweightEMu;
   TBranch        *b_embweight;
   TBranch	 *b_prefiringweight;
   TBranch	 *b_prefiringweightUp;
@@ -1117,12 +1142,24 @@ public :
   TBranch        *b_weight_CMS_mufake_mt_MVADM11_13TeVDown;
 
   TBranch        *b_qcdweight_deltaR;
-  TBranch        *b_qcdweight_deltaR_Par0_up;
-  TBranch        *b_qcdweight_deltaR_Par0_down;
-  TBranch        *b_qcdweight_deltaR_Par1_up;
-  TBranch        *b_qcdweight_deltaR_Par1_down;
-  TBranch        *b_qcdweight_deltaR_Par2_up;
-  TBranch        *b_qcdweight_deltaR_Par2_down;
+  TBranch        *b_qcdweight_deltaR_0jet_Par0_up;
+  TBranch        *b_qcdweight_deltaR_0jet_Par0_down;
+  TBranch        *b_qcdweight_deltaR_0jet_Par1_up;
+  TBranch        *b_qcdweight_deltaR_0jet_Par1_down;
+  TBranch        *b_qcdweight_deltaR_0jet_Par2_up;
+  TBranch        *b_qcdweight_deltaR_0jet_Par2_down;
+  TBranch        *b_qcdweight_deltaR_1jet_Par0_up;
+  TBranch        *b_qcdweight_deltaR_1jet_Par0_down;
+  TBranch        *b_qcdweight_deltaR_1jet_Par1_up;
+  TBranch        *b_qcdweight_deltaR_1jet_Par1_down;
+  TBranch        *b_qcdweight_deltaR_1jet_Par2_up;
+  TBranch        *b_qcdweight_deltaR_1jet_Par2_down;
+  TBranch        *b_qcdweight_deltaR_2jet_Par0_up;
+  TBranch        *b_qcdweight_deltaR_2jet_Par0_down;
+  TBranch        *b_qcdweight_deltaR_2jet_Par1_up;
+  TBranch        *b_qcdweight_deltaR_2jet_Par1_down;
+  TBranch        *b_qcdweight_deltaR_2jet_Par2_up;
+  TBranch        *b_qcdweight_deltaR_2jet_Par2_down;
   TBranch        *b_qcdweight_nonclosure;
   TBranch        *b_qcdweight_isolationcorrection;
   TBranch        *b_qcdweight;
@@ -1183,8 +1220,6 @@ public :
   TBranch	 *b_puppimetcov01;
   TBranch	 *b_puppimetcov10;
   TBranch	 *b_puppimetcov11;
-  TBranch	 *b_puppipzetamiss;
-  TBranch        *b_puppipzeta;
   
   //di tau system
   TBranch	 *b_pt_tt;
